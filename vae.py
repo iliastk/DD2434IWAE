@@ -8,20 +8,19 @@ twoPI = torch.tensor(2*np.pi)
 
 
 class VAE(nn.Module):
-    def __init__(self, X_dim, H_dim, Z_dim, num_samples, encoder='Gaussian', decoder='Bernoulli'):
+    def __init__(self, X_dim, H_dim, Z_dim, num_samples, encoder='Gaussian', decoder='Bernoulli', bias=None):
         super(VAE, self).__init__()
         self.num_samples = num_samples
-        self.mu_x = None
         # encoder network - q(z|x)
         if encoder == 'Gaussian':
-            self.encoder = GaussianSampler(X_dim, H_dim, Z_dim)
+            self.encoder = GaussianSampler(X_dim, H_dim["encoder"], Z_dim)
         if encoder == 'Bernoulli':
-            self.encoder = BernoulliSampler(X_dim, H_dim, Z_dim)
+            self.encoder = BernoulliSampler(X_dim, H_dim["encoder"], Z_dim)
         # decoder network - p(x|h)
         if decoder == 'Gaussian':  # for continous value data
-            self.decoder = GaussianSampler(X_dim, H_dim, Z_dim)
+            self.decoder = GaussianSampler(X_dim, H_dim["decoder"], Z_dim, bias)
         if decoder == 'Bernoulli':  # for binary value data
-            self.decoder = BernoulliSampler(X_dim, H_dim, Z_dim)
+            self.decoder = BernoulliSampler(X_dim, H_dim["decoder"], Z_dim, bias)
 
     def encode(self, X):
         return self.encoder(X)

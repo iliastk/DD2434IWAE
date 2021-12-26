@@ -24,17 +24,17 @@ def main():
         "test": BinarizedMNIST(train=False, root_path="./data/")
     }
     data_loader = {
-        "train": torch.utils.data.DataLoader(dataset=data["train"], batch_size=batch_size, shuffle=True),
+        "train": torch.utils.data.DataLoader(dataset=data["train"], batch_size=batch_size, shuffle=False),
         "val": None,
-        "test": torch.utils.data.DataLoader(dataset=data["test"], batch_size=batch_size, shuffle=True)
+        "test": torch.utils.data.DataLoader(dataset=data["test"], batch_size=batch_size, shuffle=False)
     }
 
     X_dim = 784  # 28x28
     Z_dim = 50
-    H_dim = [200, 200]
+    H_dim = {"encoder": [200, 200], "decoder": [200, 200]}
     num_samples = 1
     model = VAE(X_dim, H_dim, Z_dim, num_samples,
-                encoder='Gaussian', decoder='Bernoulli')
+                encoder='Gaussian', decoder='Bernoulli', bias=data["train"].get_train_bias())
 #     model = IWAE(X_dim, Z_dim)
 
     lr = 0.001  # TODO: Make lr scheduable as in Burda et al.
