@@ -1,7 +1,6 @@
 from datasets import BinarizedMNIST
 from vae2 import VAE as VAE_2
 from vae import VAE as VAE
-from iwae import IWAE
 
 import torchvision
 from torchvision import transforms
