@@ -12,12 +12,12 @@ import numpy as np
 def main():
     # TODO: Proper weight init
     # TODO: Proper bias init
-    # TODO: Fix Seed to 123 (Burda et al.)
+    # TODO: Log to TensorBoard
     torch.manual_seed(123)
     random.seed(123)
     np.random.seed(123)
 
-    batch_size = 20  # TODO: correct?
+    batch_size = 20
     data = {
         "train": BinarizedMNIST(train=True, root_path="./data/"),
         "val": None,
@@ -38,12 +38,16 @@ def main():
 #     model = IWAE(X_dim, Z_dim)
 
     lr = 0.001  # TODO: Make lr scheduable as in Burda et al.
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     beta_1, beta_2, epsilon = 0.9, 0.999, 1e-4
-    # optimizer = torch.optim.Adam(
-    #     model.parameters(), lr=lr, betas=(beta_1, beta_2), eps=epsilon)
+    optimizer = torch.optim.Adam(
+        model.parameters(), lr=lr, betas=(beta_1, beta_2), eps=epsilon)
 
-    num_epochs = 10  # TODO: Set epochs like Burda et al.
+    milestones = np.cumsum([3 ** i for i in range(8)])
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        optimizer, milestones=milestones, gamma=10 ** (-1 / 7), verbose=True
+    )
+
+    num_epochs = 3280  # TODO: Set epochs like Burda et al.
     for epoch in range(num_epochs):
         for batch_idx, (X, _) in enumerate(data_loader["train"]):
             optimizer.zero_grad()
@@ -52,10 +56,25 @@ def main():
             loss.backward()
             optimizer.step()
 
+        scheduler.step()
         print('Epoch [{}/{}],  loss: {:.3f}'.format(epoch +
                                                     1, num_epochs, loss.item()))
         print('Epoch [{}/{}],  negative log-likelihood: {:.3f}'.format(epoch +
                                                                        1, num_epochs, - log_px.item()))
+
+    # Dirty Testing
+    log_px_test = []
+    with torch.no_grad():
+        for batch_idx, (X, _) in enumerate(data_loader["test"]):
+            X = X.view(batch_size, X_dim)
+            outputs, log_px, loss = model(X)
+            log_px_test.append(-log_px.item())
+        print('Negative log-likelihood on test set: {:.3f}'.format(
+            torch.mean(torch.tensor(log_px_test))))
+
+    with open('results.txt', 'w') as f:
+        f.write('Negative log-likelihood on test set: {:.3f}'.format(
+            torch.mean(torch.tensor(log_px_test))))
 
 
 main()

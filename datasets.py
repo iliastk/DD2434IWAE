@@ -13,10 +13,7 @@ class BinarizedMNIST(torchvision.datasets.MNIST):
         return len(self.data)
 
     def __getitem__(self, idx):
-        if self.train:
-            img, target = self.data[idx], self.targets[idx]
-        else:
-            img, target = self.test_data[idx], self.test_labels[idx]
+        img, target = self.data[idx], self.targets[idx]
 
         img = self.data[idx]
         img = Image.fromarray(img.numpy(), mode='L')
