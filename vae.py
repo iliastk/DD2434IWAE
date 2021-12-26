@@ -2,58 +2,44 @@ import torch.distributions as td
 import torch
 from torch import nn
 import numpy as np
-from datasets import BinarizedMNIST
+from samplers import GaussianSampler, BernoulliSampler
 
 twoPI = torch.tensor(2*np.pi)
 
 
 class VAE(nn.Module):
-    def __init__(self, X_dim, H_dim, Z_dim, num_samples):
+    def __init__(self, X_dim, H_dim, Z_dim, num_samples, encoder='Gaussian', decoder='Bernoulli'):
         super(VAE, self).__init__()
         self.num_samples = num_samples
-        self.mu_z, self.std_z, self.mu_x = None, None, None
-        # encoder network for computing mean and std of a Gaussian proposal q(h|x)
-        self.encoder_base = nn.Sequential(
-            nn.Linear(X_dim, H_dim), nn.Tanh(),
-            nn.Linear(H_dim, H_dim), nn.Tanh())
-        self.encoder_q_mean = nn.Sequential(
-            self.encoder_base, nn.Linear(H_dim, Z_dim))
-        self.encoder_q_logvar = nn.Sequential(
-            self.encoder_base, nn.Linear(H_dim, Z_dim))
-
-        # decoder network for computing mean of a Bernoulli likelihood p(x|h)
-        self.decoder_p_mean = nn.Sequential(
-            nn.Linear(Z_dim, H_dim), nn.Tanh(),
-            nn.Linear(H_dim, H_dim), nn.Tanh(),
-            nn.Linear(H_dim, X_dim), nn.Sigmoid())
+        self.mu_x = None
+        # encoder network - q(z|x)
+        if encoder == 'Gaussian':
+            self.encoder = GaussianSampler(X_dim, H_dim, Z_dim)
+        if encoder == 'Bernoulli':
+            self.encoder = BernoulliSampler(X_dim, H_dim, Z_dim)
+        # decoder network - p(x|h)
+        if decoder == 'Gaussian':  # for continous value data
+            self.decoder = GaussianSampler(X_dim, H_dim, Z_dim)
+        if decoder == 'Bernoulli':  # for binary value data
+            self.decoder = BernoulliSampler(X_dim, H_dim, Z_dim)
 
     def encode(self, X):
-        mu_z = self.encoder_q_mean(X)
-        logvar_z = self.encoder_q_logvar(X)
-        std_z = torch.exp(logvar_z / 2)
-
-        z = mu_z + std_z * torch.randn_like(std_z)
-
-        self.std_z = std_z
-        self.mu_z = mu_z
-
-        return z
+        return self.encoder(X)
 
     def decode(self, Z):
-        self.mu_x = self.decoder_p_mean(Z)
-        return self.mu_x
+        return self.decoder(Z)
 
     def forward(self, X):
 
         X = torch.repeat_interleave(X.unsqueeze(1), self.num_samples, dim=1)
 
         Z = self.encode(X)
-        mu_x = self.decode(Z)
+        self.decode(Z)
 
         loss, log_elbo = self.loss(Z, X)
         log_px = self.compute_NLL(log_elbo)
 
-        return (Z, self.mu_z, self.std_z, self.mu_x), loss, log_px
+        return (Z, self.encoder.mean, self.encoder.std, self.decoder.mean), loss, log_px
 
     def loss(self, Z, X):
         log_elbo = self.compute_log_elbo(Z, X)
@@ -63,7 +49,7 @@ class VAE(nn.Module):
         return -loss, log_elbo
 
     def compute_log_elbo(self, Z, X):
-        mu_z, std_z, mu_x = self.mu_z, self.std_z, self.mu_x
+        mu_z, std_z, mu_x = self.encoder.mean, self.encoder.std, self.decoder.mean
 
         # likelihood: p(x|z, theta) => log(Bernoulli(mu_x))
         logP_XgivenZ = torch.sum(

@@ -1,6 +1,5 @@
 from datasets import BinarizedMNIST
-from vae import VAE as VAE_2
-from vae import VAE as VAE
+from vae import VAE
 
 import torchvision
 from torchvision import transforms
@@ -32,9 +31,10 @@ def main():
 
     X_dim = 784  # 28x28
     Z_dim = 50
-    H_dim = 200
+    H_dim = [200, 200]
     num_samples = 1
-    model = VAE_2(X_dim, H_dim, Z_dim, num_samples)
+    model = VAE(X_dim, H_dim, Z_dim, num_samples,
+                encoder='Gaussian', decoder='Bernoulli')
 #     model = IWAE(X_dim, Z_dim)
 
     lr = 0.001  # TODO: Make lr scheduable as in Burda et al.
