@@ -1,5 +1,5 @@
 from datasets import BinarizedMNIST
-from vae2 import VAE as VAE_2
+from vae import VAE as VAE_2
 from vae import VAE as VAE
 
 import torchvision
