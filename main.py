@@ -3,7 +3,7 @@ from vae import VAE
 
 import torchvision
 from torchvision import transforms
-
+from torch import nn
 import torch
 import random
 import numpy as np
@@ -39,9 +39,11 @@ def main():
                 encoder='Gaussian', decoder='Bernoulli', bias=model_bias)
     print(model)
 
-    ## Parallelize model
-
-
+    # Parallelize model
+    if torch.cuda.device_count() > 1:
+        print("Let's use", torch.cuda.device_count(), "GPUs!")
+        model = nn.DataParallel(model)
+        model.set_gpu_use()
 
     lr = 0.001  # TODO: Make lr scheduable as in Burda et al.
     beta_1, beta_2, epsilon = 0.9, 0.999, 1e-4
@@ -64,7 +66,8 @@ def main():
             optimizer.step()
 
         scheduler.step()
-        print(f'Epoch[{epoch+1}/{num_epochs}],  loss: {loss.item():.3f},  NLL: {-log_px.item():.3f}')
+        print(
+            f'Epoch[{epoch+1}/{num_epochs}],  loss: {loss.item():.3f},  NLL: {-log_px.item():.3f}')
 
     # Dirty Testing
     log_px_test = []
