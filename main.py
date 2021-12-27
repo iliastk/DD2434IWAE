@@ -62,7 +62,7 @@ def main():
             optimizer.zero_grad()
             X = X.view(batch_size, X_dim)
             outputs, loss, log_px = model(X)
-            loss.backward()
+            loss.mean().backward()
             optimizer.step()
 
         scheduler.step()
