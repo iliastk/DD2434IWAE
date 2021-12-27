@@ -18,14 +18,11 @@ class VAE(nn.Module):
             self.encoder = BernoulliSampler(X_dim, H_dim["encoder"], Z_dim)
         # decoder network - p(x|h)
         if decoder == 'Gaussian':  # for continous value data
-            self.decoder = GaussianSampler(
-                X_dim, H_dim["decoder"], Z_dim, bias)
+            self.decoder = GaussianSampler(X_dim, H_dim["decoder"], Z_dim, bias)
         if decoder == 'Bernoulli':  # for binary value data
-            self.decoder = BernoulliSampler(
-                X_dim, H_dim["decoder"], Z_dim, bias)
+            self.decoder = BernoulliSampler(X_dim, H_dim["decoder"], Z_dim, bias)
 
-        self.device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.to(self.device)
 
     def encode(self, X):
@@ -36,8 +33,7 @@ class VAE(nn.Module):
 
     def forward(self, X):
 
-        X = torch.repeat_interleave(X.unsqueeze(
-            1), self.num_samples, dim=1).to(self.device)
+        X = torch.repeat_interleave(X.unsqueeze(1), self.num_samples, dim=1).to(self.device)
 
         Z = self.encode(X)
         self.decode(Z)
