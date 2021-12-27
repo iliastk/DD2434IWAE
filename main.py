@@ -35,8 +35,7 @@ def main():
     num_samples = 1
     model = VAE(X_dim, H_dim, Z_dim, num_samples,
                 encoder='Gaussian', decoder='Bernoulli', bias=data["train"].get_train_bias())
-#     model = IWAE(X_dim, Z_dim)
-
+    print(model)
     lr = 0.001  # TODO: Make lr scheduable as in Burda et al.
     beta_1, beta_2, epsilon = 0.9, 0.999, 1e-4
     optimizer = torch.optim.Adam(
