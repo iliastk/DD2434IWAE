@@ -38,20 +38,22 @@ class VAE(nn.Module):
         X = torch.repeat_interleave(X.unsqueeze(
             1), self.num_samples, dim=1).to(self.device)
 
-        Z = self.encode(X)
-        self.decode(Z)
+        self.Z = self.encode(X)
+        mean_x = self.decode(self.Z)
 
-        loss, log_elbo = self.loss(Z, X)
+        return mean_x
+
+    def loss(self, output, target):
+        X = torch.repeat_interleave(target.unsqueeze(
+            1), self.num_samples, dim=1).to(self.device)
+
+        log_elbo = self.compute_log_elbo(self.Z, target)
         log_px = self.compute_NLL(log_elbo)
-
-        return (Z, self.encoder.mean, self.encoder.std, self.decoder.mean), loss, log_px
-
-    def loss(self, Z, X):
-        log_elbo = self.compute_log_elbo(Z, X)
 
         loss = torch.sum(log_elbo, dim=-1)
         loss = torch.mean(loss)
-        return -loss, log_elbo
+
+        return -loss, log_px
 
     def compute_log_elbo(self, Z, X):
         mu_z, std_z, mu_x = self.encoder.mean, self.encoder.std, self.decoder.mean

@@ -61,8 +61,9 @@ def main():
         for batch_idx, (X, _) in enumerate(data_loader["train"]):
             optimizer.zero_grad()
             X = X.view(batch_size, X_dim)
-            outputs, loss, log_px = model(X)
-            loss.mean().backward()
+            output = model(X)
+            loss, log_px = model.loss(output, X)
+            loss.backward()
             optimizer.step()
 
         scheduler.step()
