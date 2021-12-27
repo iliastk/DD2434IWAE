@@ -3,7 +3,7 @@ from vae import VAE
 
 import torchvision
 from torchvision import transforms
-from torch import nn
+
 import torch
 import random
 import numpy as np
@@ -24,27 +24,19 @@ def main():
         "test": BinarizedMNIST(train=False, root_path="./data/")
     }
     data_loader = {
-        "train": torch.utils.data.DataLoader(dataset=data["train"], batch_size=batch_size, shuffle=True, num_workers=4),
+        "train": torch.utils.data.DataLoader(dataset=data["train"], batch_size=batch_size, shuffle=True, num_workers=2),
         "val": None,
-        "test": torch.utils.data.DataLoader(dataset=data["test"], batch_size=batch_size, shuffle=True, num_workers=4)
+        "test": torch.utils.data.DataLoader(dataset=data["test"], batch_size=batch_size, shuffle=True, num_workers=2)
     }
 
     X_dim = 784  # 28x28
     Z_dim = 50
     H_dim = {"encoder": [200, 200], "decoder": [200, 200]}
     num_samples = 1
-
     model_bias = data["train"].get_bias()
     model = VAE(X_dim, H_dim, Z_dim, num_samples,
                 encoder='Gaussian', decoder='Bernoulli', bias=model_bias)
     print(model)
-
-    # Parallelize model
-    if torch.cuda.device_count() > 1:
-        print("Let's use", torch.cuda.device_count(), "GPUs!")
-        model = nn.DataParallel(model)
-        model.to('cuda')
-
     lr = 0.001  # TODO: Make lr scheduable as in Burda et al.
     beta_1, beta_2, epsilon = 0.9, 0.999, 1e-4
     optimizer = torch.optim.Adam(
@@ -61,14 +53,12 @@ def main():
         for batch_idx, (X, _) in enumerate(data_loader["train"]):
             optimizer.zero_grad()
             X = X.view(batch_size, X_dim)
-            output = model(X)
-            loss, log_px = model.loss(output, X)
+            outputs, loss, log_px = model(X)
             loss.backward()
             optimizer.step()
 
         scheduler.step()
-        print(
-            f'Epoch[{epoch+1}/{num_epochs}],  loss: {loss.item():.3f},  NLL: {-log_px.item():.3f}')
+        print(f'Epoch[{epoch+1}/{num_epochs}],  loss: {loss.item():.3f},  NLL: {-log_px.item():.3f}')
 
     # Dirty Testing
     log_px_test = []
