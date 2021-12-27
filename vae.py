@@ -105,6 +105,7 @@ class VAE(nn.Module):
     def set_gpu_use(self):
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")
+        print(f'Using device [{self.device}] to train network.')
         self.to(self.device)
 
 
