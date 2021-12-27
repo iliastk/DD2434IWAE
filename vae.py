@@ -18,15 +18,15 @@ class VAE(nn.Module):
             self.encoder = BernoulliSampler(X_dim, H_dim["encoder"], Z_dim)
         # decoder network - p(x|h)
         if decoder == 'Gaussian':  # for continous value data
-            self.decoder = GaussianSampler(X_dim, H_dim["decoder"], Z_dim, bias)
+            self.decoder = GaussianSampler(X_dim, H_dim["decoder"], Z_dim)
         if decoder == 'Bernoulli':  # for binary value data
-            self.decoder = BernoulliSampler(X_dim, H_dim["decoder"], Z_dim, bias)
+            self.decoder = BernoulliSampler(X_dim, H_dim["decoder"], Z_dim)
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.to(self.device)
-
+        self.set_gpu_use()
+        # TODO: Why I get better results if I dont use the authors initialization?
         self.apply(self.init)
-        
+        self.set_bias(bias)
+
     def encode(self, X):
         return self.encoder(X)
 
@@ -35,7 +35,8 @@ class VAE(nn.Module):
 
     def forward(self, X):
 
-        X = torch.repeat_interleave(X.unsqueeze(1), self.num_samples, dim=1).to(self.device)
+        X = torch.repeat_interleave(X.unsqueeze(
+            1), self.num_samples, dim=1).to(self.device)
 
         Z = self.encode(X)
         self.decode(Z)
@@ -95,6 +96,17 @@ class VAE(nn.Module):
                 module.weight, gain=nn.init.calculate_gain("tanh")
             )
             module.bias.data.fill_(0.01)
+
+    def set_bias(self, bias):
+        if bias is not None:
+            self.decoder.mean_net[-1].bias = torch.nn.Parameter(
+                torch.Tensor(bias))
+
+    def set_gpu_use(self):
+        self.device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu")
+        self.to(self.device)
+
 
 def iwae_loss():
    # normalized weights through Exp-Normalization trick

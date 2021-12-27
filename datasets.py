@@ -19,15 +19,18 @@ class BinarizedMNIST(torchvision.datasets.MNIST):
         img = Image.fromarray(img.numpy(), mode='L')
         img = transforms.ToTensor()(img)
         # TODO: Try torch.bernoulli()?
-        # img = img > 0.5
-        # img = img.float()
-        img = torch.bernoulli(img)
+        img = img > 0.5
+        img = img.float()
+        # img = torch.bernoulli(img)
         return img, target
 
-    def get_train_bias(self):
-       return -np.log(1./np.clip(self.get_train_mean(), 0.001, 0.999)-1.)
+    def get_bias(self):
+       mean_img = self.get_mean()
+       mean_img = np.clip(mean_img, 1e-8, 1.0 - 1e-7)
+       mean_img_logit = -np.log(1./ (1.0 - mean_img))
+       return mean_img_logit
 
-    def get_train_mean(self):
-        imgs = self.data[:len(self)].type(torch.float)
+    def get_mean(self):
+        imgs = self.data[:len(self)].type(torch.float) / 255
         mean_img = imgs.mean(0).reshape(-1).numpy()
         return mean_img

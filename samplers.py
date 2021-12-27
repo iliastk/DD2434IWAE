@@ -4,27 +4,25 @@ from torch import nn
 
 
 class GaussianSampler(nn.Module):
-    def __init__(self, X_dim, H_dim, Z_dim, bias=None):
+    def __init__(self, X_dim, H_dim, Z_dim):
         super(GaussianSampler, self).__init__()
-        self.mu_z, self.std_z = None, None
+        self.mean, self.std = None, None
         layers = []
         for layer_dim in H_dim:
             layers.append(nn.Linear(X_dim, layer_dim))
             layers.append(nn.Tanh())
             X_dim = layer_dim
-        self.base_encoder = nn.Sequential(*layers)
+        self.base_net = nn.Sequential(*layers)
 
-        self.encoder_mean = nn.Sequential(
-            self.base_encoder, nn.Linear(H_dim[-1], Z_dim))
-        self.encoder_logvar = nn.Sequential(
-            self.base_encoder, nn.Linear(H_dim[-1], Z_dim))
+        self.mean_net = nn.Sequential(
+            self.base_net, nn.Linear(H_dim[-1], Z_dim))
+        self.logvar_net = nn.Sequential(
+            self.base_net, nn.Linear(H_dim[-1], Z_dim))
 
-        if bias is not None:
-            self.encoder_mean[-1].bias = torch.nn.Parameter(torch.Tensor(bias))
 
     def forward(self, X):
-        mean = self.encoder_mean(X)
-        logvar = self.encoder_logvar(X)
+        mean = self.mean_net(X)
+        logvar = self.logvar_net(X)
         std = torch.exp(logvar / 2)
 
         z = mean + std * torch.randn_like(std)
@@ -36,7 +34,7 @@ class GaussianSampler(nn.Module):
 
 
 class BernoulliSampler(nn.Module):
-    def __init__(self, X_dim, H_dim, Z_dim, bias=None):
+    def __init__(self, X_dim, H_dim, Z_dim):
         super(BernoulliSampler, self).__init__()
         self.mean = None
         layers = []
@@ -44,15 +42,12 @@ class BernoulliSampler(nn.Module):
             layers.append(nn.Linear(Z_dim, layer_dim))
             layers.append(nn.Tanh())
             Z_dim = layer_dim
-        self.base_encoder = nn.Sequential(*layers)
+        self.base_net = nn.Sequential(*layers)
 
-        self.encoder_mean = nn.Sequential(
-            self.base_encoder, nn.Linear(H_dim[0], X_dim), nn.Sigmoid())
-
-        if bias is not None:
-            # bias right before Sigmoid
-            self.encoder_mean[-2].bias = torch.nn.Parameter(torch.Tensor(bias))
+        self.mean_net = nn.Sequential(
+            self.base_net, nn.Linear(H_dim[0], X_dim))
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, X):
-        self.mean = self.encoder_mean(X)
+        self.mean = self.sigmoid(self.mean_net(X))
         return self.mean
