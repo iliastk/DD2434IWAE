@@ -47,7 +47,7 @@ class GaussianSampler(nn.Module):
 class BernoulliSampler(nn.Module):
     def __init__(self, X_dim, H_dim, Z_dim, bias=None):
         super(BernoulliSampler, self).__init__()
-        self.mu = None
+        self.mean = None
         layers = []
         for layer_dim in list(reversed(H_dim)):
             layers.append(nn.Linear(Z_dim, layer_dim))
@@ -73,4 +73,4 @@ class BernoulliSampler(nn.Module):
 
     def forward(self, X):
         self.mean = self.encoder_mean(X)
-        return self.mu
+        return self.mean
