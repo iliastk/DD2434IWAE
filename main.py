@@ -24,27 +24,29 @@ def main():
         "test": BinarizedMNIST(train=False, root_path="./data/")
     }
     data_loader = {
-        "train": torch.utils.data.DataLoader(dataset=data["train"], batch_size=batch_size, shuffle=False),
+        "train": torch.utils.data.DataLoader(dataset=data["train"], batch_size=batch_size, shuffle=True),
         "val": None,
-        "test": torch.utils.data.DataLoader(dataset=data["test"], batch_size=batch_size, shuffle=False)
+        "test": torch.utils.data.DataLoader(dataset=data["test"], batch_size=batch_size, shuffle=True)
     }
 
     X_dim = 784  # 28x28
     Z_dim = 50
     H_dim = {"encoder": [200, 200], "decoder": [200, 200]}
     num_samples = 1
+    model_bias = None #data["train"].get_train_bias()
     model = VAE(X_dim, H_dim, Z_dim, num_samples,
-                encoder='Gaussian', decoder='Bernoulli', bias=data["train"].get_train_bias())
+                encoder='Gaussian', decoder='Bernoulli', bias=model_bias)
     print(model)
     lr = 0.001  # TODO: Make lr scheduable as in Burda et al.
     beta_1, beta_2, epsilon = 0.9, 0.999, 1e-4
-    optimizer = torch.optim.Adam(
-        model.parameters(), lr=lr, betas=(beta_1, beta_2), eps=epsilon)
+    # optimizer = torch.optim.Adam(
+    #     model.parameters(), lr=lr, betas=(beta_1, beta_2), eps=epsilon)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     milestones = np.cumsum([3 ** i for i in range(8)])
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=milestones, gamma=10 ** (-1 / 7), verbose=True
-    )
+    # scheduler = torch.optim.lr_scheduler.MultiStepLR(
+    #     optimizer, milestones=milestones, gamma=10 ** (-1 / 7), verbose=True
+    # )
 
     num_epochs = 3280  # TODO: Set epochs like Burda et al.
     for epoch in range(num_epochs):
@@ -55,11 +57,8 @@ def main():
             loss.backward()
             optimizer.step()
 
-        scheduler.step()
-        print('Epoch [{}/{}],  loss: {:.3f}'.format(epoch +
-                                                    1, num_epochs, loss.item()))
-        print('Epoch [{}/{}],  negative log-likelihood: {:.3f}'.format(epoch +
-                                                                       1, num_epochs, - log_px.item()))
+        # scheduler.step()
+        print(f'Epoch[{epoch+1}/{num_epochs}],  loss: {loss.item():.3f},  NLL: {-log_px.item():.3f}')
 
     # Dirty Testing
     log_px_test = []

@@ -19,17 +19,8 @@ class GaussianSampler(nn.Module):
         self.encoder_logvar = nn.Sequential(
             self.base_encoder, nn.Linear(H_dim[-1], Z_dim))
 
-        self.apply(self.init)
         if bias is not None:
             self.encoder_mean[-1].bias = torch.nn.Parameter(torch.Tensor(bias))
-
-    def init(self, module):
-        ''' All models were initialized with the heuristic of Glorot & Bengio (2010). '''
-        if type(module) == nn.Linear:
-            torch.nn.init.xavier_uniform_(
-                module.weight, gain=nn.init.calculate_gain("tanh")
-            )
-            module.bias.data.fill_(0.01)
 
     def forward(self, X):
         mean = self.encoder_mean(X)
@@ -58,18 +49,9 @@ class BernoulliSampler(nn.Module):
         self.encoder_mean = nn.Sequential(
             self.base_encoder, nn.Linear(H_dim[0], X_dim), nn.Sigmoid())
 
-        self.apply(self.init)
         if bias is not None:
             # bias right before Sigmoid
             self.encoder_mean[-2].bias = torch.nn.Parameter(torch.Tensor(bias))
-
-    def init(self, module):
-        ''' All models were initialized with the heuristic of Glorot & Bengio (2010). '''
-        if type(module) == nn.Linear:
-            torch.nn.init.xavier_uniform_(
-                module.weight, gain=nn.init.calculate_gain("tanh")
-            )
-            module.bias.data.fill_(0.01)
 
     def forward(self, X):
         self.mean = self.encoder_mean(X)

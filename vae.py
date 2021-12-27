@@ -25,6 +25,8 @@ class VAE(nn.Module):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.to(self.device)
 
+        self.apply(self.init)
+        
     def encode(self, X):
         return self.encoder(X)
 
@@ -86,6 +88,13 @@ class VAE(nn.Module):
 
         return -log_px
 
+    def init(self, module):
+        ''' All models were initialized with the heuristic of Glorot & Bengio (2010). '''
+        if type(module) == nn.Linear:
+            torch.nn.init.xavier_uniform_(
+                module.weight, gain=nn.init.calculate_gain("tanh")
+            )
+            module.bias.data.fill_(0.01)
 
 def iwae_loss():
    # normalized weights through Exp-Normalization trick
