@@ -24,19 +24,25 @@ def main():
         "test": BinarizedMNIST(train=False, root_path="./data/")
     }
     data_loader = {
-        "train": torch.utils.data.DataLoader(dataset=data["train"], batch_size=batch_size, shuffle=True, num_workers=2),
+        "train": torch.utils.data.DataLoader(dataset=data["train"], batch_size=batch_size, shuffle=True, num_workers=4),
         "val": None,
-        "test": torch.utils.data.DataLoader(dataset=data["test"], batch_size=batch_size, shuffle=True, num_workers=2)
+        "test": torch.utils.data.DataLoader(dataset=data["test"], batch_size=batch_size, shuffle=True, num_workers=4)
     }
 
     X_dim = 784  # 28x28
     Z_dim = 50
     H_dim = {"encoder": [200, 200], "decoder": [200, 200]}
     num_samples = 1
+
     model_bias = data["train"].get_bias()
     model = VAE(X_dim, H_dim, Z_dim, num_samples,
                 encoder='Gaussian', decoder='Bernoulli', bias=model_bias)
     print(model)
+
+    ## Parallelize model
+
+
+
     lr = 0.001  # TODO: Make lr scheduable as in Burda et al.
     beta_1, beta_2, epsilon = 0.9, 0.999, 1e-4
     optimizer = torch.optim.Adam(
