@@ -1,6 +1,9 @@
 from datasets import BinarizedMNIST
 from vae import VAE
 
+from datetime import datetime
+from pathlib import Path
+
 import torchvision
 from torchvision import transforms
 
@@ -8,6 +11,7 @@ import torch
 import random
 import numpy as np
 
+from evaluation import train_epoch, test_epoch, log_results 
 
 def main():
     # TODO: Proper weight init
@@ -24,9 +28,9 @@ def main():
         "test": BinarizedMNIST(train=False, root_path="./data/")
     }
     data_loader = {
-        "train": torch.utils.data.DataLoader(dataset=data["train"], batch_size=batch_size, shuffle=True, num_workers=2),
+        "train": torch.utils.data.DataLoader(dataset=data["train"], batch_size=batch_size, shuffle=True, num_workers=8),
         "val": None,
-        "test": torch.utils.data.DataLoader(dataset=data["test"], batch_size=batch_size, shuffle=True, num_workers=2)
+        "test": torch.utils.data.DataLoader(dataset=data["test"], batch_size=batch_size, shuffle=True, num_workers=8)
     }
 
     X_dim = 784  # 28x28
@@ -37,6 +41,7 @@ def main():
     model = VAE(X_dim, H_dim, Z_dim, num_samples,
                 encoder='Gaussian', decoder='Bernoulli', bias=model_bias)
     print(model)
+
     lr = 0.001  # TODO: Make lr scheduable as in Burda et al.
     beta_1, beta_2, epsilon = 0.9, 0.999, 1e-4
     optimizer = torch.optim.Adam(
@@ -48,31 +53,21 @@ def main():
         optimizer, milestones=milestones, gamma=10 ** (-1 / 7), verbose=True
     )
 
+    experiment_name = 'base'
+    now = datetime.now()
+    timestamp = now.strftime("%d-%m-%Y-%H:%M:%S")
+    best_model_dir = f'results/{experiment_name}/{timestamp}'
+    Path(best_model_dir).mkdir(parents=True, exist_ok=True)
+
+
     num_epochs = 3280  # TODO: Set epochs like Burda et al.
     for epoch in range(num_epochs):
-        for batch_idx, (X, _) in enumerate(data_loader["train"]):
-            optimizer.zero_grad()
-            X = X.view(batch_size, X_dim)
-            outputs, loss, log_px = model(X)
-            loss.backward()
-            optimizer.step()
+        train_results = train_epoch(optimizer, scheduler, batch_size, data_loader["train"], model, X_dim)
+        test_results = test_epoch(data_loader["test"], batch_size, model, X_dim)
+        log_results(best_model_dir, test_results, train_results, epoch, num_epochs, model)
 
-        scheduler.step()
-        print(f'Epoch[{epoch+1}/{num_epochs}],  loss: {loss.item():.3f},  NLL: {-log_px.item():.3f}')
 
-    # Dirty Testing
-    log_px_test = []
-    with torch.no_grad():
-        for batch_idx, (X, _) in enumerate(data_loader["test"]):
-            X = X.view(batch_size, X_dim)
-            outputs, log_px, loss = model(X)
-            log_px_test.append(-log_px.item())
-        print('Negative log-likelihood on test set: {:.3f}'.format(
-            torch.mean(torch.tensor(log_px_test))))
-
-    with open('results.txt', 'w') as f:
-        f.write('Negative log-likelihood on test set: {:.3f}'.format(
-            torch.mean(torch.tensor(log_px_test))))
-
+    # TODO: Check if loss is nan
+    # TODO: Check if improvement in test loss is too small
 
 main()

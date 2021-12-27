@@ -11,6 +11,7 @@ class VAE(nn.Module):
     def __init__(self, X_dim, H_dim, Z_dim, num_samples, encoder='Gaussian', decoder='Bernoulli', bias=None):
         super(VAE, self).__init__()
         self.num_samples = num_samples
+        self.best_test_NLL = -np.inf
         # encoder network - q(z|x)
         if encoder == 'Gaussian':
             self.encoder = GaussianSampler(X_dim, H_dim["encoder"], Z_dim)
