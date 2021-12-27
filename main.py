@@ -43,7 +43,7 @@ def main():
     if torch.cuda.device_count() > 1:
         print("Let's use", torch.cuda.device_count(), "GPUs!")
         model = nn.DataParallel(model)
-        model.set_gpu_use()
+        model.to('cuda')
 
     lr = 0.001  # TODO: Make lr scheduable as in Burda et al.
     beta_1, beta_2, epsilon = 0.9, 0.999, 1e-4
