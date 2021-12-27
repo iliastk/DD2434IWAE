@@ -22,10 +22,10 @@ class VAE(nn.Module):
         if decoder == 'Bernoulli':  # for binary value data
             self.decoder = BernoulliSampler(X_dim, H_dim["decoder"], Z_dim)
 
-        self.set_gpu_use()
         # TODO: Why I get better results if I dont use the authors initialization?
         self.apply(self.init)
         self.set_bias(bias)
+        self.set_gpu_use()
 
     def encode(self, X):
         return self.encoder(X)
