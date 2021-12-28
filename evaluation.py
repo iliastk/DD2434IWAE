@@ -47,7 +47,6 @@ def log_results(best_model_dir, test_results, train_results, curr_epoch, num_epo
     out_result = out_result + \
         f'\t == \t Test [loss: {loss.item():.3f}, NLL:{log_px.item():.3f}]'
     best_model_filename = f'{best_model_dir}/Epoch:{curr_epoch}-Loss:{loss:.2f}-LogPx:{log_px:.2f}.pt'
-
     # TODO: Log to tensorboard
 
     print(out_result)
