@@ -1,60 +1,39 @@
-from datetime import datetime
-from pathlib import Path
-import numpy as np
-
-experiment = {
-    'name': 'base',
-    'seed': 123,
-    'data': {
-        'name': 'BinarizedMNISt',
-        'batch_size': 20,
-        'path': './data/',
-        'num_workers': 8,
-    },
-    'model': {
-        'type': 'VAE',
-        'X_dim': 784,   # input dim
-        'Z_dim': 50,    # latent dim
-        'encoder': {
-            'H_dim': [200, 200],    # deterministic layers
-            'type': 'Gaussian'
-        },
-        'decoder': {
-            'H_dim': [200, 200],    # deterministic layers
-            'type': 'Bernoulli'
-        },
-        'num_samples': 1,
-    },
-    'training': {
-        'scheduler': {
-            'base_lr': 0.001,
-            'gamma': 10 ** (-1/7),
-            'milestones': np.cumsum([3 ** i for i in range(8)])
-        },
-        'optimizer': {
-            'beta1': 0.9,
-            'beta2': 0.999,
-            'epsilon': 1e-4
-        },
-        'total_epochs': 3280
-    }
-}
+from evaluation import train_epoch, test_epoch
+from utils import *
+from tensorboardX import SummaryWriter
 
 
-def run_experiment(experiment):
-    now = datetime.now()
-    timestamp = now.strftime("%d-%m-%Y-%H:%M:%S")
+def launch_experiment(experiment):
 
-    results_dir = f'results/{experiment["name"]}/{timestamp}'
-    Path(results_dir).mkdir(parents=True, exist_ok=True)
+    results_dir = create_results_dir(experiment["name"])
+    writer = SummaryWriter(results_dir)
 
-    experiment['results_dir'] = results_dir
+    data_loader, batch_size, model_bias = setup_data(experiment["data"])
+    model = setup_model(experiment["model"], model_bias)
 
-    num_epochs = 3280  # TODO: Set epochs like Burda et al.
+    run_train_test(experiment["training"], batch_size,
+                   data_loader, model, results_dir, writer)
+    
+
+def run_train_test(params, batch_size, data_loader, model, results_dir, writer):
+    optimizer = get_optimizer(params["optimizer"], model.parameters())
+    scheduler = get_scheduler(params["scheduler"], optimizer)
+    num_epochs = params['total_epochs']
+    input_dim = model.encoder.base_net[0].in_features
     for epoch in range(num_epochs):
         train_results = train_epoch(
-            optimizer, scheduler, batch_size, data_loader["train"], model, X_dim)
-        test_results = test_epoch(
-            data_loader["test"], batch_size, model, X_dim)
-        log_results(best_model_dir, test_results,
-                    train_results, epoch, num_epochs, model)
+            optimizer, scheduler, batch_size, data_loader["train"], model, input_dim)
+        test_results, stop_training = test_epoch(
+            data_loader["test"], batch_size, model, input_dim)
+        log_results(results_dir, test_results,
+                    train_results, epoch, num_epochs, model, writer, epoch)
+        # Stop training when loss vanishes
+        if (test_results['loss'] or train_results['loss']) is np.nan:
+            print(
+                f'\t\t == Stopping at epoch [{epoch}/{num_epochs}] because loss vanished ==')
+            break
+        if stop_training:
+            print(
+                f'\t\t == Stopping at epoch [{epoch}/{num_epochs}] because training converged ==')
+            break
+
