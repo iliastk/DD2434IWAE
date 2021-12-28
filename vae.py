@@ -8,11 +8,10 @@ twoPI = torch.tensor(2*np.pi)
 
 
 class VAE(nn.Module):
-    def __init__(self, X_dim, H_dim, Z_dim, num_samples, encoder='Gaussian', decoder='Bernoulli', bias=None, loss_threshold=0.01):
+    def __init__(self, X_dim, H_dim, Z_dim, num_samples, encoder='Gaussian', decoder='Bernoulli', bias=None):
         super(VAE, self).__init__()
         self.num_samples = num_samples
-        self.best_test_loss = np.inf
-        self.loss_threshold = loss_threshold
+        self.best_test_NLL = -np.inf
         # encoder network - q(z|x)
         if encoder == 'Gaussian':
             self.encoder = GaussianSampler(X_dim, H_dim["encoder"], Z_dim)
@@ -107,7 +106,7 @@ class VAE(nn.Module):
     def set_gpu_use(self):
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")
-        print(f'Using device [{self.device}].')
+        print(f'Using device [{self.device}] to train network.')
         self.to(self.device)
 
 
