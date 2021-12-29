@@ -1,7 +1,7 @@
 import torch
 
 
-def test_epoch(epoch, data_loader, criterion, batch_size, model, X_dim, early_stopping):
+def test_epoch(data_loader, criterion, batch_size, model, X_dim):
     epoch_NLL = []
     epoch_loss = []
     with torch.no_grad():

@@ -17,7 +17,7 @@ class VAELoss(nn.Module):
         loss = torch.mean(loss)
 
         NLL = self.NLL(elbo)
-        return -loss, NLL
+        return -loss, -NLL
 
     def elbo(self, output, target):  # TODO: is this log_elbo?
         X = torch.repeat_interleave(target.unsqueeze(
@@ -98,7 +98,7 @@ class EarlyStopping:
         if self.best_NLL is None:
             self.best_NLL = NLL
             self.save_checkpoint(NLL, model, loss, epoch)
-        elif np.abs(NLL) - np.abs(self.best_NLL) > self.threshold:
+        elif np.abs(np.abs(NLL) - np.abs(self.best_NLL)) > self.threshold:
             self.best_score = NLL
             self.save_checkpoint(NLL, model, loss, epoch)
             self.counter = 0
@@ -114,9 +114,9 @@ class EarlyStopping:
         """Saves model when test NLL decrease."""
         if self.verbose:
             self.trace_func(
-                f"\t\t >>> Test NLL increased ({self.min_NLL:.3f} --> {NLL:.3f}).  Saving model ... <<<"
+                f"\t\t >>> Test NLL decreased ({self.min_NLL:.3f} --> {NLL:.3f}).  Saving model ... <<<"
             )
             # Save
         best_model_filename = f'{self.best_model_dir}/Epoch:{epoch}-Loss:{loss:.2f}-LogPx:{NLL:.2f}.pt'
         torch.save(model.state_dict(), best_model_filename)
-        self.NLL_min = NLL
+        self.min_NLL = NLL

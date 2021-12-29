@@ -68,7 +68,7 @@ def setup_scheduler(params, optimizer):
 
 def setup_early_stopping(params, results_dir):
     early_stopping = EarlyStopping(
-        patience=params['patience'], threshold=params['threshold'], filename=results_dir)
+        patience=params['patience'], threshold=params['threshold'], best_model_dir=results_dir)
     return early_stopping
 
 
