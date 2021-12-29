@@ -2,55 +2,81 @@ from torch import nn
 import numpy as np
 import torch
 
+twoPI = torch.tensor(2*np.pi)
+
 
 class VAELoss(nn.Module):
-    def __init__(self, alpha, beta, gamma):
+    def __init__(self, num_samples):
         super(VAELoss, self).__init__()
-        self.alpha = alpha
-        self.beta = beta
-        self.gamma = gamma
+        self.num_samples = num_samples
+        self.set_gpu_use()
 
-    def forward(self, outputs, labels):
-        v_ccc, a_ccc, d_ccc = (
-            self.ccc(outputs[:, 0], labels[:, 0]),
-            self.ccc(outputs[:, 1], labels[:, 1]),
-            self.ccc(outputs[:, 2], labels[:, 2]),
-        )
-        v_loss, a_loss, d_loss = 1.0 - v_ccc, 1.0 - a_ccc, 1.0 - d_ccc
+    def forward(self, outputs, target):
+        elbo = self.elbo(outputs, target)
+        loss = torch.sum(elbo, dim=-1)
+        loss = torch.mean(loss)
 
-        ccc = v_ccc + a_ccc + d_ccc
-        loss = self.alpha * v_loss + self.beta * a_loss + self.gamma * d_loss
-        # loss = (v_loss + a_loss + d_loss) / 3
+        NLL = self.NLL(elbo)
+        return -loss, NLL
 
-        return loss, ccc, v_ccc, a_ccc, d_ccc
+    def elbo(self, output, target):  # TODO: is this log_elbo?
+        X = torch.repeat_interleave(target.unsqueeze(
+            1), self.num_samples, dim=1).to(self.device)
+        Z = output['Z']
+        mu_z, std_z, mu_x = output['encoder']['mean'], output['encoder']['std'], output['decoder']['mean']
 
-    def ccc(self, outputs, labels):
-        labels_mean = torch.mean(labels)
-        outputs_mean = torch.mean(outputs)
-        covariance = (labels - labels_mean) * (outputs - outputs_mean)
+        # likelihood: p(x|z, theta) => log(Bernoulli(mu_x))
+        logP_XgivenZ = torch.sum(
+            X * torch.log(mu_x) + (1-X) * torch.log(1 - mu_x), dim=-1)
 
-        label_var = torch.mean(torch.square(labels - labels_mean))
-        outputs_var = torch.mean(torch.square(outputs - outputs_mean))
+        # prior: p(z|theta) => log(N(0,1))
+        logP_Z = torch.sum(-0.5*torch.log(twoPI) - torch.pow(0.5*Z, 2), dim=-1)
+        # logP_Z = torch.sum(-0.5*torch.log(twoPI) - 0.5*torch.pow(z, 2), dim=-1) #TODO: which one is the correct formula?
 
-        ccc = (2.0 * covariance) / (
-            label_var + outputs_var + torch.square(labels_mean - outputs_mean)
-        )
-        return torch.mean(ccc)
+        # posterior: q(z|x, phi) => log(N(mu_z, std_z))
+        logQ_ZgivenX = torch.sum(-torch.log(std_z) -
+                                 0.5*torch.log(twoPI) -
+                                 0.5*torch.pow((Z - mu_z)/std_z, 2),
+                                 dim=-1)  # sum over last dimension, i.e, content (mu or std) of each batch
+
+        # TODO: this is the ELBO, right?
+        # computing log w function: log(w) = log(p(x,z)) - log(p(z|x))
+        elbo = logP_XgivenZ + logP_Z - logQ_ZgivenX
+
+        return elbo
+
+    def NLL(self, elbo):
+        # normalized weights through Exp-Normalization trick
+        max_elbo = torch.max(elbo, dim=-1)[0].unsqueeze(1)
+        elbo = torch.exp(elbo - max_elbo)
+
+        # Computes Negative Log Likelihood (p(x)) through Log-Sum-Exp trick
+        # TODO: How to compute log-likelihood p(x) to compare NLL
+        NLL = max_elbo + \
+            torch.log((1/self.num_samples) * torch.sum(elbo, dim=-1))
+        NLL = torch.mean(NLL)  # mean over batches
+
+        return NLL
+
+    def set_gpu_use(self):
+        self.device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu")
+        self.to(self.device)
 
 
 class EarlyStopping:
-    """Early stops the training if validation loss doesn't improve after a given patience."""
+    """Early stops the training if test NLL doesn't improve after a given patience."""
 
     def __init__(
-        self, patience=7, verbose=False, delta=0, name="checkpoint.pt", trace_func=print
+        self, patience=7, verbose=True, threshold=0, best_model_dir=None, trace_func=print
     ):
         """
         Args:
-            patience (int): How long to wait after last time validation loss improved.
+            patience (int): How long to wait after last time test NLL improved.
                             Default: 7
-            verbose (bool): If True, prints a message for each validation loss improvement.
+            verbose (bool): If True, prints a message for each test NLL improvement.
                             Default: False
-            delta (float): Minimum change in the monitored quantity to qualify as an improvement.
+            threshold (float): Minimum change in the monitored quantity to qualify as an improvement.
                             Default: 0
             name (str): name for the checkpoint to be saved to.
                             Default: 'checkpoint.pt'
@@ -60,39 +86,37 @@ class EarlyStopping:
         self.patience = patience
         self.verbose = verbose
         self.counter = 0
-        self.best_score = None
+        self.best_NLL = None
         self.early_stop = False
-        self.mean_ccc_min = np.Inf
-        self.delta = delta
-        self.name = name
+        self.min_NLL = np.Inf
+        self.threshold = threshold
+        self.best_model_dir = best_model_dir
         self.trace_func = trace_func
 
-    def __call__(self, mean_ccc, model):
+    def __call__(self, NLL, loss, epoch, model):
 
-        score = mean_ccc
-
-        if self.best_score is None:
-            self.best_score = score
-            self.save_checkpoint(mean_ccc, model)
-        elif np.abs(score) - np.abs(self.best_score) > self.delta:
-            self.best_score = score
-            self.save_checkpoint(mean_ccc, model)
+        if self.best_NLL is None:
+            self.best_NLL = NLL
+            self.save_checkpoint(NLL, model, loss, epoch)
+        elif np.abs(NLL) - np.abs(self.best_NLL) > self.threshold:
+            self.best_score = NLL
+            self.save_checkpoint(NLL, model, loss, epoch)
             self.counter = 0
         else:
             self.counter += 1
             self.trace_func(
-                f"EarlyStopping counter: {self.counter} out of {self.patience}"
+                f"\t\t == EarlyStopping counter: [{self.counter}/{self.patience}] =="
             )
             if self.counter >= self.patience:
                 self.early_stop = True
 
-    def save_checkpoint(self, mean_ccc, model):
-        """Saves model when validation loss decrease."""
-        import copy
-
+    def save_checkpoint(self, NLL, model, loss, epoch):
+        """Saves model when test NLL decrease."""
         if self.verbose:
             self.trace_func(
-                f"Validation CCC increased ({self.mean_ccc_min:.6f} --> {mean_ccc:.6f}).  Saving model ..."
+                f"\t\t >>> Test NLL increased ({self.min_NLL:.3f} --> {NLL:.3f}).  Saving model ... <<<"
             )
-        torch.save(model.state_dict(), self.name)
-        self.mean_ccc_min = mean_ccc
+            # Save
+        best_model_filename = f'{self.best_model_dir}/Epoch:{epoch}-Loss:{loss:.2f}-LogPx:{NLL:.2f}.pt'
+        torch.save(model.state_dict(), best_model_filename)
+        self.NLL_min = NLL

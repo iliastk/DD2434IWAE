@@ -43,53 +43,14 @@ class VAE(nn.Module):
         Z = self.encode(X)
         self.decode(Z)
 
-        loss, log_elbo = self.loss(Z, X)
-        log_px = self.compute_NLL(log_elbo)
-
-        return (Z, self.encoder.mean, self.encoder.std, self.decoder.mean), loss, log_px
-
-    def loss(self, Z, X):
-        log_elbo = self.compute_log_elbo(Z, X)
-
-        loss = torch.sum(log_elbo, dim=-1)
-        loss = torch.mean(loss)
-        return -loss, log_elbo
-
-    def compute_log_elbo(self, Z, X):
-        mu_z, std_z, mu_x = self.encoder.mean, self.encoder.std, self.decoder.mean
-
-        # likelihood: p(x|z, theta) => log(Bernoulli(mu_x))
-        logP_XgivenZ = torch.sum(
-            X * torch.log(mu_x) + (1-X) * torch.log(1 - mu_x), dim=-1)
-
-        # prior: p(z|theta) => log(N(0,1))
-        logP_Z = torch.sum(-0.5*torch.log(twoPI) - torch.pow(0.5*Z, 2), dim=-1)
-        # logP_Z = torch.sum(-0.5*torch.log(twoPI) - 0.5*torch.pow(z, 2), dim=-1) #TODO: which one is the correct formula?
-
-        # posterior: q(z|x, phi) => log(N(mu_z, std_z))
-        logQ_ZgivenX = torch.sum(-torch.log(std_z) -
-                                 0.5*torch.log(twoPI) -
-                                 0.5*torch.pow((Z - mu_z)/std_z, 2),
-                                 dim=-1)  # sum over last dimension, i.e, content (mu or std) of each batch
-
-        # TODO: this is the ELBO, right?
-        # computing log w function: log(w) = log(p(x,z)) - log(p(z|x))
-        log_elbo = logP_XgivenZ + logP_Z - logQ_ZgivenX
-
-        return log_elbo
-
-    def compute_NLL(self, log_elbo):
-        # normalized weights through Exp-Normalization trick
-        max_elbo = torch.max(log_elbo, dim=-1)[0].unsqueeze(1)
-        elbo = torch.exp(log_elbo - max_elbo)
-
-        # Computes Negative Log Likelihood (p(x)) through Log-Sum-Exp trick
-        # TODO: How to compute log-likelihood p(x) to compare NLL
-        log_px = max_elbo + \
-            torch.log((1/self.num_samples) * torch.sum(elbo, dim=-1))
-        log_px = torch.mean(log_px)  # mean over batches
-
-        return -log_px
+        return {"Z": Z, 
+                "encoder": {
+                    "mean": self.encoder.mean, 
+                    "std": self.encoder.std
+                }, 
+                "decoder": { 
+                    "mean":self.decoder.mean
+                }}
 
     def init(self, module):
         ''' All models were initialized with the heuristic of Glorot & Bengio (2010). '''

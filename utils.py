@@ -5,6 +5,7 @@ import numpy as np
 from datetime import datetime
 from pathlib import Path
 from vae import VAE
+from loss import VAELoss, EarlyStopping
 
 
 def setup_model(params, model_bias):
@@ -15,9 +16,12 @@ def setup_model(params, model_bias):
     if params['type'] == 'VAE':
         model = VAE(X_dim, H_dim, Z_dim, num_samples,
                     encoder=params['encoder_type'], decoder=params['decoder_type'],
-                    bias=model_bias, loss_threshold=params['loss_th'])
+                    bias=model_bias)
     print(model)
-    return model
+
+    criterion = VAELoss(num_samples)
+
+    return model, criterion
 
 
 def setup_data(params):
@@ -47,7 +51,7 @@ def create_results_dir(name):
     return results_dir
 
 
-def get_optimizer(params, model_parameters):
+def setup_optimizer(params, model_parameters):
     optimizer = torch.optim.Adam(
         model_parameters, lr=params['lr'], betas=(
             params['beta1'], params['beta2']), eps=params['epsilon']
@@ -55,34 +59,36 @@ def get_optimizer(params, model_parameters):
     return optimizer
 
 
-def get_scheduler(params, optimizer):
+def setup_scheduler(params, optimizer):
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=params['milestones'], gamma=params['gamma'], verbose=True
     )
     return scheduler
 
 
-def log_results(best_model_dir, test_results, train_results, curr_epoch, num_epochs, model, writer, epoch):
+def setup_early_stopping(params, results_dir):
+    early_stopping = EarlyStopping(
+        patience=params['patience'], threshold=params['threshold'], filename=results_dir)
+    return early_stopping
+
+
+def log_results(early_stopping, test_results, train_results, curr_epoch, num_epochs, model, writer, epoch):
 
     # Log Train Results
-    train_loss, train_log_px = train_results['loss'], train_results['log_px']
-    out_result = f'Epoch[{curr_epoch+1}/{num_epochs}],  Train [loss: {train_loss.item():.3f},  NLL: {train_log_px.item():.3f}]'
+    train_loss, train_NLL = train_results['loss'], train_results['NLL']
+    out_result = f'Epoch[{curr_epoch+1}/{num_epochs}],  Train [loss: {train_loss.item():.3f},  NLL: {train_NLL.item():.3f}]'
 
     # Log Test Results
-    test_loss, test_log_px = test_results['loss'], test_results['log_px']
+    test_loss, test_NLL = test_results['loss'], test_results['NLL']
     out_result = out_result + \
-        f'\t == \t Test [loss: {test_loss.item():.3f}, NLL:{test_log_px.item():.3f}]'
+        f'\t == \t Test [loss: {test_loss.item():.3f}, NLL:{test_NLL.item():.3f}]'
 
     print(out_result)
 
-    # Save
-    best_model_filename = f'{best_model_dir}/Epoch:{epoch}-Loss:{test_loss:.2f}-LogPx:{test_log_px:.2f}.pt'
-    torch.save(model.state_dict(), best_model_filename)
-
     # Log to tensorboard
     writer.add_scalar('train/loss', train_loss, epoch)
-    writer.add_scalar('train/NLL', train_log_px, epoch)
+    writer.add_scalar('train/NLL', train_NLL, epoch)
     writer.add_scalar('test/loss', test_loss, epoch)
-    writer.add_scalar('test/NLL', test_log_px, epoch)
+    writer.add_scalar('test/NLL', test_NLL, epoch)
 
-
+    early_stopping(test_NLL, test_loss, epoch, model)

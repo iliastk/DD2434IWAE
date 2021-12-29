@@ -20,7 +20,6 @@ experiment = {
         'encoder_type': 'Gaussian',
         'decoder_type': 'Bernoulli',
         'num_samples': 1,
-        'loss_th': 0.01,
     },
     'training': {
         'scheduler': {
@@ -32,6 +31,10 @@ experiment = {
             'beta1': 0.9,
             'beta2': 0.999,
             'epsilon': 1e-4
+        },
+        'early_stopping':{
+            'patience': 7,
+            'threshold': 0.01
         },
         'total_epochs': 3280
     }
