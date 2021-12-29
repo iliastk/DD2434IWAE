@@ -45,7 +45,7 @@ def create_results_dir(name):
     now = datetime.now()
     timestamp = now.strftime("%d-%m-%Y-%H:%M:%S")
 
-    results_dir = f'results/name/{timestamp}'
+    results_dir = f'results/{name}/{timestamp}'
     Path(results_dir).mkdir(parents=True, exist_ok=True)
 
     return results_dir
