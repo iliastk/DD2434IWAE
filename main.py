@@ -7,6 +7,7 @@ import numpy as np
 
 from experiments.base import experiment as base_experiment
 from experiments.linear import experiment as linear_experiment
+from experiments.two_clusters import experiment as two_clusters_experiment
 from experiment import launch_experiment
 
 
@@ -20,7 +21,8 @@ def main():
     random.seed(123)
     np.random.seed(123)
 
-    launch_experiment(linear_experiment)
+    launch_experiment(two_clusters_experiment)
+    #launch_experiment(linear_experiment)
     # launch_experiment(base_experiment)
 
 

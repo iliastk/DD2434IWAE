@@ -25,36 +25,33 @@ def setup_model(params, model_bias):
     return model, criterion
 
 
-def gen_fake_data(params: dict) -> Tuple[torch.utils.data.DataLoader, int, float]:
+def gen_fake_data(params: dict) -> np.array: #Tuple[dict, float, float]:
     tud = torch.utils.data
     n_samples = params['n_samples']
+    name = params['name']
     # Maybe code a formula into the params somehow. Or generate a static dataset
     # in './data'?
-    σ, μ = 2, 1
+    if name == 'linear2dim':
+        σ, μ = 2, 1.
     
-    true_z = np.random.normal(size=n_samples)
-    ϵ1 = np.random.normal(size=n_samples)
-    ϵ2 = np.random.normal(size=n_samples)
-    # x = σ*true_z + μ
-    x = np.array([σ*true_z + μ+ϵ1, σ*(-true_z) + μ + ϵ2])
-    # x is dims x samples
-    x = x.T  # samples x dims
+        true_z = np.random.normal(size=n_samples)
+        ϵ1 = np.random.normal(size=n_samples)
+        ϵ2 = np.random.normal(size=n_samples)
+        x = np.array([σ*true_z + μ+ϵ1, σ*(-true_z) + μ + ϵ2])
+        # x is dims x samples
+        x = x.T  # samples x dims
+    elif name == 'two_clusters':
+        true_z = np.random.normal(size=n_samples)
+        means_x = (true_z > 0) * 1.0 + (true_z <= 0) * (-1)
+        ϵ = np.random.normal(size=n_samples, scale=0.5)
+        x = means_x + ϵ
+        μ = 0.0
+    return x, [μ]
     
-    tensor_x = torch.Tensor(x) # transform to torch tensor
-    tensor_dummy_y = torch.Tensor(np.zeros(n_samples))
-    dataset = tud.TensorDataset(tensor_x, tensor_dummy_y) # create your datset
-    data_loader = {'train': tud.DataLoader(dataset=dataset,
-                                           batch_size=params['batch_size'],
-                                           shuffle=False),
-                   'test': tud.DataLoader(dataset=dataset,
-                                          batch_size=params['batch_size'],
-                                          shuffle=False),
-                   'val': None
-                            }
-    return (data_loader, params['batch_size'], μ)
+    
 
 def setup_data(params):
-    if params['name'] not in ['linear2dim']:
+    if params['name'] not in ['linear2dim', 'two_clusters']:
         data = {
             'train': BinarizedMNIST(train=True, root_path=params['path']),
             'val': None,
@@ -71,10 +68,23 @@ def setup_data(params):
                 shuffle=True, num_workers=8)
         }
         bias = data['train'].get_bias()
-        batch_size = params['batch_size']
     else:
-        data_loader, batch_size, bias = gen_fake_data(params)
-    return data_loader, batch_size, bias
+        train_x, bias = gen_fake_data(params)
+        test_x, bias = gen_fake_data(params)
+        train_tensor_x = torch.Tensor(train_x) # transform to torch tensor
+        test_tensor_x = torch.Tensor(test_x) # transform to torch tensor
+        tensor_dummy_y = torch.Tensor(np.zeros(n_samples))
+        train_dataset = tud.TensorDataset(train_tensor_x, tensor_dummy_y)
+        test_dataset = tud.TensorDataset(test_tensor_x, tensor_dummy_y)
+        data_loader = {'train': tud.DataLoader(dataset=train_dataset,
+                                           batch_size=params['batch_size'],
+                                           shuffle=False),
+                   'test': tud.DataLoader(dataset=test_dataset,
+                                          batch_size=params['batch_size'],
+                                          shuffle=False),
+                   'val': None
+                            }
+    return data_loader, params['batch_size'], bias
 
 
 def create_results_dir(name):
