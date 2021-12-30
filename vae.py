@@ -2,7 +2,7 @@ import torch.distributions as td
 import torch
 from torch import nn
 import numpy as np
-from samplers import GaussianSampler, BernoulliSampler
+from samplers import Sampler
 
 twoPI = torch.tensor(2*np.pi)
 
@@ -14,16 +14,13 @@ class VAE(nn.Module):
         self.best_test_loss = np.inf
         self.loss_threshold = loss_threshold
         # encoder network - q(z|x)
-        if encoder == 'Gaussian':
-            self.encoder = GaussianSampler(X_dim, H_dim["encoder"], Z_dim)
-        if encoder == 'Bernoulli':
-            self.encoder = BernoulliSampler(X_dim, H_dim["encoder"], Z_dim)
+        self.encoder = Sampler(X_dim, H_dim, Z_dim,
+                               sampler_kind=encoder, is_encoder=True)
+                
         # decoder network - p(x|h)
-        if decoder == 'Gaussian':  # for continous value data
-            self.decoder = GaussianSampler(X_dim, H_dim["decoder"], Z_dim)
-        if decoder == 'Bernoulli':  # for binary value data
-            self.decoder = BernoulliSampler(X_dim, H_dim["decoder"], Z_dim)
-
+        self.decoder = Sampler(X_dim, H_dim, Z_dim,
+                               sampler_kind=decoder, is_encoder=False)
+        
         # TODO: Why I get better results if I dont use the authors initialization?
         self.apply(self.init)
         self.set_bias(bias)
