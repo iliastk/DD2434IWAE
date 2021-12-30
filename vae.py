@@ -2,38 +2,42 @@ import torch.distributions as td
 import torch
 from torch import nn
 import numpy as np
-from samplers import GaussianSampler, BernoulliSampler
+from samplers import GaussianSampler, BernoulliSampler, Sampler
 
 twoPI = torch.tensor(2*np.pi)
 
 
 class VAE(nn.Module):
-    def __init__(self, X_dim, H_dim, Z_dim, num_samples, encoder='Gaussian', decoder='Bernoulli', bias=None, loss_threshold=0.01):
+    def __init__(self, X_dim, H_dim, Z_dim, num_samples, encoder='Gaussian', decoder='Bernoulli', bias=None):
         super(VAE, self).__init__()
         self.num_samples = num_samples
-        self.best_test_loss = np.inf
-        self.loss_threshold = loss_threshold
         # encoder network - q(z|x)
-        if encoder == 'Gaussian':
-            self.encoder = GaussianSampler(X_dim, H_dim["encoder"], Z_dim)
-        if encoder == 'Bernoulli':
-            self.encoder = BernoulliSampler(X_dim, H_dim["encoder"], Z_dim)
+        self.encoder_layers = []
+        self.encoder_layers.append(Sampler(X_dim, H_dim, Z_dim, sampler_kind=encoder, is_encoder=True))
+        self.encoder_layers = nn.Sequential(*self.encoder_layers)
         # decoder network - p(x|h)
-        if decoder == 'Gaussian':  # for continous value data
-            self.decoder = GaussianSampler(X_dim, H_dim["decoder"], Z_dim)
-        if decoder == 'Bernoulli':  # for binary value data
-            self.decoder = BernoulliSampler(X_dim, H_dim["decoder"], Z_dim)
+        self.decoder_layers = []
+        self.decoder_layers.append(Sampler(X_dim, H_dim, Z_dim, sampler_kind=decoder, is_encoder=False))
+        self.decoder_layers = nn.Sequential(*self.decoder_layers)
 
         # TODO: Why I get better results if I dont use the authors initialization?
         self.apply(self.init)
         self.set_bias(bias)
         self.set_gpu_use()
+        # prior - p(z)
+        self.prior = torch.distributions.Normal(torch.zeros(Z_dim).to(self.device), torch.ones(Z_dim).to(self.device))
 
     def encode(self, X):
-        return self.encoder(X)
+        for encoder in self.encoder_layers:
+            X = encoder(X)
+        Z = X
+        return Z
 
     def decode(self, Z):
-        return self.decoder(Z)
+        for decoder in self.decoder_layers:
+            Z = decoder(Z)
+        X = Z
+        return X
 
     def forward(self, X):
 
@@ -43,14 +47,15 @@ class VAE(nn.Module):
         Z = self.encode(X)
         self.decode(Z)
 
-        return {"Z": Z, 
-                "encoder": {
-                    "mean": self.encoder.mean, 
-                    "std": self.encoder.std
-                }, 
-                "decoder": { 
-                    "mean":self.decoder.mean
-                }}
+        return Z
+        # return {"Z": Z, 
+        #         "encoder": {
+        #             "mean": self.encoder.mean, 
+        #             "std": self.encoder.std
+        #         }, 
+        #         "decoder": { 
+        #             "mean":self.decoder.mean
+        #         }}
 
     def init(self, module):
         ''' All models were initialized with the heuristic of Glorot & Bengio (2010). '''
@@ -62,8 +67,8 @@ class VAE(nn.Module):
 
     def set_bias(self, bias):
         if bias is not None:
-            self.decoder.mean_net[-1].bias = torch.nn.Parameter(
-                torch.Tensor(bias))
+            for decoder in self.decoder_layers:
+                decoder.mean_net[-1].bias = torch.nn.Parameter(torch.Tensor(bias))
 
     def set_gpu_use(self):
         self.device = torch.device(

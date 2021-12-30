@@ -8,6 +8,36 @@ from vae import VAE
 from loss import VAELoss, EarlyStopping
 
 
+def gen_fake_data(params: dict):
+    tud = torch.utils.data
+    n_samples = params['n_samples']
+    # Maybe code a formula into the params somehow. Or generate a static dataset
+    # in './data'?
+    sigma, mu = 2, 1
+
+    true_z = np.random.normal(size=n_samples)
+    epsilon_1 = np.random.normal(size=n_samples)
+    epsilon_2 = np.random.normal(size=n_samples)
+    # x = σ*true_z + μ
+    x = np.array([sigma*true_z + mu+epsilon_1, sigma*(-true_z) + mu + epsilon_2])
+    # x is dims x samples
+    x = x.T  # samples x dims
+
+    tensor_x = torch.Tensor(x)  # transform to torch tensor
+    tensor_dummy_y = torch.Tensor(np.zeros(n_samples))
+    dataset = tud.TensorDataset(tensor_x, tensor_dummy_y)  # create your datset
+    data_loader = {'train': tud.DataLoader(dataset=dataset,
+                                           batch_size=params['batch_size'],
+                                           shuffle=False),
+                   'test': tud.DataLoader(dataset=dataset,
+                                          batch_size=params['batch_size'],
+                                          shuffle=False),
+                   'val': None
+                   }
+    return (data_loader, params['batch_size'], mu)
+
+
+
 def setup_model(params, model_bias):
     X_dim = params['X_dim']
     Z_dim = params['Z_dim']
@@ -25,20 +55,27 @@ def setup_model(params, model_bias):
 
 
 def setup_data(params):
-    data = {
-        "train": BinarizedMNIST(train=True, root_path=params['path']),
-        "val": None,
-        "test": BinarizedMNIST(train=False, root_path=params['path'])
-    }
-    data_loader = {
-        "train": torch.utils.data.DataLoader(
-            dataset=data["train"], batch_size=params['batch_size'], shuffle=True, num_workers=8),
-        "val": None,
-        "test": torch.utils.data.DataLoader(
-            dataset=data["test"], batch_size=params['batch_size'], shuffle=True, num_workers=8)
-    }
-    bias = data["train"].get_bias()
-    return data_loader, params['batch_size'], bias
+    if params['name'] not in ['linear2dim']:
+        data = {
+            'train': BinarizedMNIST(train=True, root_path=params['path']),
+            'val': None,
+            'test': BinarizedMNIST(train=False, root_path=params['path'])
+        }
+
+        data_loader = {
+            'train': torch.utils.data.DataLoader(
+                dataset=data['train'], batch_size=params['batch_size'],
+                shuffle=True, num_workers=8),
+            'val': None,
+            'test': torch.utils.data.DataLoader(
+                dataset=data['test'], batch_size=params['batch_size'],
+                shuffle=True, num_workers=8)
+        }
+        bias = data['train'].get_bias()
+        batch_size = params['batch_size']
+    else:
+        data_loader, batch_size, bias = gen_fake_data(params)
+    return data_loader, batch_size, bias
 
 
 def create_results_dir(name):

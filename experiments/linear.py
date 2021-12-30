@@ -1,21 +1,22 @@
 import numpy as np
 
 experiment = {
-    'name': 'base-gradclip+bernoulli',
+    'name': 'base',
     'seed': 123,
     'data': {
-        'name': 'BinarizedMNISt',
+        'name': 'linear2dim',
         'batch_size': 20,
         'path': './data/',
-        'num_workers': 8,
+        'num_workers': 1,
+        'n_samples': 1000
     },
     'model': {
         'type': 'VAE',
-        'X_dim': 784,   # input dim
-        'Z_dim': 50,    # latent dim
-        'H_dim': [200, 200], # deterministic layer dim
+        'X_dim': 2,   # input dim
+        'Z_dim': 1,    # latent dim
+        'H_dim': [],  # deterministic layer dim (can be empty)
         'encoder_type': 'Gaussian',
-        'decoder_type': 'Bernoulli',
+        'decoder_type': 'Gaussian',
         'num_samples': 1,
     },
     'training': {

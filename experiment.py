@@ -10,6 +10,7 @@ def launch_experiment(experiment):
     data_loader, batch_size, model_bias = setup_data(experiment["data"])
     model, criterion = setup_model(experiment["model"], model_bias)
 
+
     run_train_test(experiment["training"], batch_size,
                    data_loader, criterion, model, results_dir, writer)
     
@@ -20,18 +21,14 @@ def run_train_test(params, batch_size, data_loader, criterion, model, results_di
     early_stopping = setup_early_stopping(params['early_stopping'], results_dir)
 
     num_epochs = params['total_epochs']
-    input_dim = model.encoder.base_net[0].in_features
+    input_dim = model.encoder_layers[0].input_dim
     for epoch in range(num_epochs):
         train_results = train_epoch(
             optimizer, scheduler, criterion, batch_size, data_loader["train"], model, input_dim)
         test_results  = test_epoch(
             data_loader["test"], criterion, batch_size, model, input_dim)
         log_results(early_stopping, test_results, train_results, epoch, num_epochs, model, writer, epoch)
-        # Stop training when loss vanishes
-        if (test_results['loss'] or train_results['loss']) is np.nan:
-            print(
-                f'\t\t == Stopping at epoch [{epoch}/{num_epochs}] because loss vanished ==')
-            break
+
         if early_stopping.early_stop:
             print("\t\t == Early stopped == ")
             break
