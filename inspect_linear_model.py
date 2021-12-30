@@ -22,7 +22,7 @@ def main():
     model, _ = setup_model(experiment["model"], model_bias=[1])
 
     path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-      'results/two_clusters/30-12-2021-12:54:30/Epoch:0-Loss:1.53-LogPx:1.53.pt')
+      'results/two_clusters/30-12-2021-15:59:29/Epoch:4-Loss:1.69-LogPx:1.69.pt')
 
     # path="/home/alex/DD2434IWAE/results/linear2dim/30-12-2021-11:16:03/Epoch:9-Loss:3.93-LogPx:3.93.pt"
     state_dict = torch.load(path)
@@ -35,7 +35,7 @@ def main():
 
     data, _ = gen_fake_data(experiment['data'])
     plt.figure(figsize=(9, 4))
-    plt.title("True distr vs VAE distr[]")
+    plt.title("True distr vs VAE distr")
 
     plt.subplot(141)
     plt.hist(data, density=True, bins=30)

@@ -26,7 +26,6 @@ def setup_model(params, model_bias):
 
 
 def gen_fake_data(params: dict) -> np.array: #Tuple[dict, float, float]:
-    tud = torch.utils.data
     n_samples = params['n_samples']
     name = params['name']
     # Maybe code a formula into the params somehow. Or generate a static dataset
@@ -42,7 +41,7 @@ def gen_fake_data(params: dict) -> np.array: #Tuple[dict, float, float]:
         x = x.T  # samples x dims
     elif name == 'two_clusters':
         true_z = np.random.normal(size=n_samples)
-        means_x = (true_z > 0) * 1.0 + (true_z <= 0) * (-1)
+        means_x = (true_z > 0) * 2.0 + (true_z <= 0) * (-2.0)
         ϵ = np.random.normal(size=n_samples, scale=0.5)
         x = means_x + ϵ
         μ = 0.0
@@ -69,10 +68,12 @@ def setup_data(params):
         }
         bias = data['train'].get_bias()
     else:
+        tud = torch.utils.data
         train_x, bias = gen_fake_data(params)
         test_x, bias = gen_fake_data(params)
         train_tensor_x = torch.Tensor(train_x) # transform to torch tensor
         test_tensor_x = torch.Tensor(test_x) # transform to torch tensor
+        n_samples = params["n_samples"]
         tensor_dummy_y = torch.Tensor(np.zeros(n_samples))
         train_dataset = tud.TensorDataset(train_tensor_x, tensor_dummy_y)
         test_dataset = tud.TensorDataset(test_tensor_x, tensor_dummy_y)
