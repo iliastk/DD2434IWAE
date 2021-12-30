@@ -23,8 +23,21 @@ class VAE(nn.Module):
         
         # TODO: Why I get better results if I dont use the authors initialization?
         self.apply(self.init)
+
+        # Trick to avoid NaNs in the first iteration - set the log_var bias to
+        # something large, and the log_var weight to something small.
+        if decoder == 'Gaussian':
+            self.decoder.logvar_net[-1].weight.data.fill_(0.01)
+            self.decoder.logvar_net[-1].bias.data.fill_(1)
+        if encoder == 'Gaussian':
+            self.encoder.logvar_net[-1].weight.data.fill_(0.01)
+            self.encoder.logvar_net[-1].bias.data.fill_(1)
+            
         self.set_bias(bias)
         self.set_gpu_use()
+        for name, param in self.named_parameters():
+            if param.requires_grad:
+                print (name, param.data)
 
     def encode(self, X):
         return self.encoder(X)
@@ -40,14 +53,17 @@ class VAE(nn.Module):
         Z = self.encode(X)
         self.decode(Z)
 
-        return {"Z": Z, 
-                "encoder": {
-                    "mean": self.encoder.mean, 
-                    "std": self.encoder.std
-                }, 
-                "decoder": { 
-                    "mean":self.decoder.mean
-                }}
+        res= {"Z": Z, 
+              "encoder": {
+                  "mean": self.encoder.mean, 
+                  "std": self.encoder.std
+                  }, 
+              "decoder": { 
+                  "mean": self.decoder.mean
+                  }}
+        if self.decoder.sampler_kind == "Gaussian":
+            res["decoder"]["std"] = self.decoder.std
+        return res
 
     def init(self, module):
         ''' All models were initialized with the heuristic of Glorot & Bengio (2010). '''

@@ -1,14 +1,14 @@
 import numpy as np
 
 experiment = {
-    'name': 'base',
+    'name': 'linear2dim',
     'seed': 123,
     'data': {
         'name': 'linear2dim',
         'batch_size': 20,
         'path': './data/',
         'num_workers': 1,
-        'n_samples': 1000
+        'n_samples': 100000
     },
     'model': {
         'type': 'VAE',
@@ -34,6 +34,6 @@ experiment = {
             'patience': 7,
             'threshold': 0.01
         },
-        'total_epochs': 3280
+        'total_epochs': 10
     }
 }

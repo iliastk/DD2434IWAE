@@ -19,7 +19,8 @@ def setup_model(params, model_bias):
                     bias=model_bias)
     print(model)
 
-    criterion = VAELoss(num_samples)
+    criterion = VAELoss(num_samples, bernoulli_decoder =
+                        (params['decoder_type']=='Bernoulli'))
 
     return model, criterion
 

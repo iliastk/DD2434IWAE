@@ -3,13 +3,16 @@ import numpy as np
 import torch
 
 twoPI = torch.tensor(2*np.pi)
+ONE = torch.tensor(1.0)
+ZERO = torch.tensor(0.0)
 
 
 class VAELoss(nn.Module):
-    def __init__(self, num_samples):
+    def __init__(self, num_samples, bernoulli_decoder):
         super(VAELoss, self).__init__()
         self.num_samples = num_samples
         self.set_gpu_use()
+        self.bernoulli_decoder = bernoulli_decoder
 
     def forward(self, outputs, target):
         elbo = self.elbo(outputs, target)
@@ -19,29 +22,43 @@ class VAELoss(nn.Module):
         NLL = self.NLL(elbo)
         return -loss, -NLL
 
-    def elbo(self, output, target):  # TODO: is this log_elbo?
+    def elbo(self, output, target, verbose=False):  # TODO: is this log_elbo?
+        def logN(V, μ, σ):
+            # sum over last dimension, i.e, content (μ or std) of each batch
+            return torch.sum(-torch.log(σ)
+                             - 0.5*torch.log(twoPI)
+                             - 0.5*torch.pow((V - μ)/σ, 2),
+                             dim=-1)
+        
         X = torch.repeat_interleave(target.unsqueeze(
             1), self.num_samples, dim=1).to(self.device)
         Z = output['Z']
-        mu_z, std_z, mu_x = output['encoder']['mean'], output['encoder']['std'], output['decoder']['mean']
-
-        # likelihood: p(x|z, theta) => log(Bernoulli(mu_x))
-        logP_XgivenZ = torch.sum(
-            X * torch.log(mu_x) + (1-X) * torch.log(1 - mu_x), dim=-1)
+        μ_z, σ_z, μ_x = output['encoder']['mean'], output['encoder']['std'], output['decoder']['mean']
+                
+        # likelihood: p(x|z, theta) => log(Bernoulli(μ_x))
+        if self.bernoulli_decoder:
+            logP_XgivenZ = torch.sum(
+                X * torch.log(μ_x) + (1-X) * torch.log(1 - μ_x), dim=-1)
+        else:
+            σ_x = output['decoder']['std']
+            
+            logP_XgivenZ = logN(X, μ_x, σ_x)
 
         # prior: p(z|theta) => log(N(0,1))
-        logP_Z = torch.sum(-0.5*torch.log(twoPI) - torch.pow(0.5*Z, 2), dim=-1)
-        # logP_Z = torch.sum(-0.5*torch.log(twoPI) - 0.5*torch.pow(z, 2), dim=-1) #TODO: which one is the correct formula?
-
-        # posterior: q(z|x, phi) => log(N(mu_z, std_z))
-        logQ_ZgivenX = torch.sum(-torch.log(std_z) -
-                                 0.5*torch.log(twoPI) -
-                                 0.5*torch.pow((Z - mu_z)/std_z, 2),
-                                 dim=-1)  # sum over last dimension, i.e, content (mu or std) of each batch
-
-        # TODO: this is the ELBO, right?
+        logP_Z = logN(Z, ZERO, ONE)
+                
+        # posterior: q(z|x, phi) => log(N(μ_z, σ_z))
+        logQ_ZgivenX = logN(Z, μ_z, σ_z)
+        
         # computing log w function: log(w) = log(p(x,z)) - log(p(z|x))
         elbo = logP_XgivenZ + logP_Z - logQ_ZgivenX
+
+        if verbose:
+            print(f"A batch, X={X}, Z={Z}")
+            print(f"μz = {μ_z}, σz={σ_z}, μx={μ_x}, σx={σ_x}")
+            print(f"log p(x|z)={logP_XgivenZ}")
+            print(f"log p(z)={logP_Z}")
+            print(f"log q(z|x)={logQ_ZgivenX}")
 
         return elbo
 
@@ -76,7 +93,7 @@ class EarlyStopping:
                             Default: 7
             verbose (bool): If True, prints a message for each test NLL improvement.
                             Default: False
-            threshold (float): Minimum change in the monitored quantity to qualify as an improvement.
+            threshold (float): Miniμm change in the monitored quantity to qualify as an improvement.
                             Default: 0
             name (str): name for the checkpoint to be saved to.
                             Default: 'checkpoint.pt'
