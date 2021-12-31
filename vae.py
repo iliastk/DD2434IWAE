@@ -13,7 +13,10 @@ class VAE(nn.Module):
         self.num_samples = num_samples
         # encoder network - q(z|x)
         self.encoder_layers = []
-        self.encoder_layers.append(Sampler(X_dim, H_dim, Z_dim, sampler_kind=encoder, is_encoder=True))
+        for units_prev, units_next, hidden_units in zip([X_dim], Z_dim, H_dim):
+            self.encoder_layers.append(Sampler([units_prev]+hidden_units+[units_next],
+                    sampler_kind=encoder, is_encoder=True))
+            
         self.encoder_layers = nn.Sequential(*self.encoder_layers)
         # decoder network - p(x|h)
         self.decoder_layers = []
@@ -25,7 +28,8 @@ class VAE(nn.Module):
         self.set_bias(bias)
         self.set_gpu_use()
         # prior - p(z)
-        self.prior = torch.distributions.Normal(torch.zeros(Z_dim).to(self.device), torch.ones(Z_dim).to(self.device))
+        # self.prior = torch.distributions.Normal(torch.zeros(Z_dim).to(self.device), torch.ones(Z_dim).to(self.device))
+        self.prior = torch.distributions.Normal(0, 1)
 
     def encode(self, X):
         for encoder in self.encoder_layers:
@@ -50,11 +54,11 @@ class VAE(nn.Module):
         return Z
         # return {"Z": Z, 
         #         "encoder": {
-        #             "mean": self.encoder.mean, 
-        #             "std": self.encoder.std
+        #             "mean": self.encoder_layers[0].mean, 
+        #             "std": self.encoder_layers[0].std
         #         }, 
         #         "decoder": { 
-        #             "mean":self.decoder.mean
+        #             "mean":self.decoder_layers[0].mean
         #         }}
 
     def init(self, module):

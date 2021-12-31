@@ -1,7 +1,7 @@
 import numpy as np
 
 experiment = {
-    'name': 'base-gradclip+bernoulli',
+    'name': 'base',
     'seed': 123,
     'data': {
         'name': 'BinarizedMNISt',
@@ -12,8 +12,8 @@ experiment = {
     'model': {
         'type': 'VAE',
         'X_dim': 784,   # input dim
-        'Z_dim': 50,    # latent dim
-        'H_dim': [200, 200], # deterministic layer dim
+        'Z_dim': [50],    # latent dim
+        'H_dim': [[200, 200]], # deterministic layer dim
         'encoder_type': 'Gaussian',
         'decoder_type': 'Bernoulli',
         'num_samples': 1,

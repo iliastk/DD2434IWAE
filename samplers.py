@@ -4,15 +4,14 @@ from torch import nn
 
 
 class Sampler(nn.Module):
-    def __init__(self, X_dim, hidden_dims, Z_dim, sampler_kind, is_encoder=True):
+    def __init__(self, layer_sizes, sampler_kind, is_encoder=True):
         super(Sampler, self).__init__()
         self.sampler_kind = sampler_kind
-        layer_sizes = [X_dim] + hidden_dims + [Z_dim]
         if not is_encoder:
             layer_sizes.reverse()
 
-        self.input_dim = X_dim if is_encoder else Z_dim
-        output_dim = Z_dim if is_encoder else X_dim
+        self.input_dim = layer_sizes[0]
+        self.output_dim = layer_sizes[-1]
 
         layers = [nn.Identity()]
         in_out_pairs = list(zip(layer_sizes, layer_sizes[1:]))
@@ -25,13 +24,12 @@ class Sampler(nn.Module):
 
         if sampler_kind == 'Gaussian':
             self.mean_net = nn.Sequential(
-                self.base_net, nn.Linear(next_dim, output_dim))
-            # TODO: Why not define exp(encode_logvar) at once?
+                self.base_net, nn.Linear(next_dim, self.output_dim))
             self.logvar_net = nn.Sequential(
-                self.base_net, nn.Linear(next_dim, output_dim))
+                self.base_net, nn.Linear(next_dim, self.output_dim))
         elif sampler_kind == 'Bernoulli':
             self.mean_net = nn.Sequential(
-                self.base_net, nn.Linear(next_dim, output_dim), nn.Sigmoid())
+                self.base_net, nn.Linear(next_dim, self.output_dim), nn.Sigmoid())
         else:
             assert False
         
@@ -43,7 +41,7 @@ class Sampler(nn.Module):
         if self.sampler_kind == 'Bernoulli':
             pdf = torch.distributions.Bernoulli(self.mean)
             
-        return torch.sum(pdf.log_prob(V))
+        return torch.sum(pdf.log_prob(V), dim=-1)
 
     def forward(self, X):
         mean = self.mean_net(X)

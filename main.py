@@ -17,6 +17,10 @@ def main():
     # TODO: Gradient clipping
     # TODO: Detect hidden units
     # TODO: Bernoulli Binarization?
+    # TODO: Compute NLL/-log(p(x)) from elbo
+    # TODO: Create IWAE 
+    # TODO: Why not define exp(encode_logvar) at once?
+
     torch.manual_seed(123)
     random.seed(123)
     np.random.seed(123)

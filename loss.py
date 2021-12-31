@@ -13,6 +13,7 @@ class VAELoss(nn.Module):
 
     def forward(self, outputs, target, model):
         elbo = self.elbo2(outputs, target, model)
+        # elbo = self.elbo(outputs, target)
         loss = torch.sum(elbo, dim=-1)
         loss = torch.mean(loss)
 
@@ -21,15 +22,16 @@ class VAELoss(nn.Module):
 
     def elbo2(self, output, target, model):
         X = torch.repeat_interleave(target.unsqueeze(
-           1), self.num_samples, dim=1).to(self.device)
+            1), self.num_samples, dim=1).to(self.device)
         Z = output
-        
-        elbo = model.prior.log_prob(Z)
-        for log_q, log_p, z, x in zip(model.encoder_layers, model.decoder_layers, Z, X):
-            elbo += log_p.log_prob(x) - log_q.log_prob(z)
+
+        # elbo = log(p(x)) + log(p(x|z)) - log(q(z|x)) = prior + likelihood - posterior
+        elbo = torch.sum(model.prior.log_prob(Z), dim=-1)
+        # elbo = torch.sum(-0.5*torch.log(twoPI) - torch.pow(0.5*Z, 2), dim=-1)
+        for log_q, log_p in zip(model.encoder_layers, model.decoder_layers):
+            elbo += log_p.log_prob(X) - log_q.log_prob(Z)
 
         return elbo
-
 
     def elbo(self, output, target):  # TODO: is this log_elbo?
         X = torch.repeat_interleave(target.unsqueeze(
@@ -110,7 +112,6 @@ class EarlyStopping:
             self.best_NLL = NLL
             self.save_checkpoint(NLL, model, loss, epoch)
         elif np.abs(NLL) < np.abs(self.best_NLL) - self.threshold:
-            self.best_score = NLL
             self.save_checkpoint(NLL, model, loss, epoch)
             self.counter = 0
         else:
