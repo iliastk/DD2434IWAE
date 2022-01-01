@@ -16,9 +16,8 @@ class Encoder(nn.Module):
         
     def forward(self, X):
         for layer in self.layers:
-            X = layer(X)
-        Z = X
-        return Z
+            layer(X)
+        return self.layers[0].Z
 
 
 class Decoder(nn.Module):
@@ -37,9 +36,8 @@ class Decoder(nn.Module):
 
     def forward(self, Z):
         for layer in self.layers:
-            Z = layer(Z)
-        X = Z
-        return X
+            layer(Z)
+        return self.layers[0].mean
 
 class VAE(nn.Module):
     def __init__(self, X_dim, H_dim, Z_dim, num_samples, encoder='Gaussian', decoder='Bernoulli', bias=None):

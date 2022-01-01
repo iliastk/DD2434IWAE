@@ -40,14 +40,12 @@ class Sampler(nn.Module):
         return pdf.log_prob(V)
 
     def forward(self, X):
-        mean = self.mean_net(X)
         if self.sampler_kind == 'Gaussian':
+            self.mean = self.mean_net(X)
             logvar = self.logvar_net(X)
-            std = torch.exp(logvar / 2)
-            self.std = std  # torch.max(std, torch.tensor(0.1))
-            z = mean + std * torch.randn_like(std)
-            self.mean = mean
-            return z
+            self.std = torch.exp(logvar / 2)
+            self.Z = self.mean + self.std * torch.randn_like(self.std)
+            return self.Z
         else:
             self.mean = self.mean_net(X)
             return self.mean
