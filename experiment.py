@@ -21,12 +21,11 @@ def run_train_test(params, batch_size, data_loader, criterion, model, results_di
     early_stopping = setup_early_stopping(params['early_stopping'], results_dir)
 
     num_epochs = params['total_epochs']
-    input_dim = model.encoder_layers[0].input_dim
     for epoch in range(num_epochs):
         train_results = train_epoch(
-            optimizer, scheduler, criterion, batch_size, data_loader["train"], model, input_dim)
+            optimizer, scheduler, criterion, batch_size, data_loader["train"], model)
         test_results  = test_epoch(
-            data_loader["test"], criterion, batch_size, model, input_dim)
+            data_loader["test"], criterion, batch_size, model)
         log_results(early_stopping, test_results, train_results, epoch, num_epochs, model, writer, epoch)
 
         if early_stopping.early_stop:

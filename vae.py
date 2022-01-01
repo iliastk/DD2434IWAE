@@ -1,8 +1,7 @@
 import torch.distributions as td
 import torch
 from torch import nn
-import numpy as np
-from samplers import GaussianSampler, BernoulliSampler, Sampler
+from sampler import Sampler
 
 class Encoder(nn.Module):
     def __init__(self, X_dim, H_dim, Z_dim, type='Gaussian'):
@@ -33,7 +32,7 @@ class Decoder(nn.Module):
             self.layers.append(
                 Sampler([units_prev]+hidden_units+[units_next], sampler_kind='Gaussian'))
         self.layers.append(
-            Sampler([units_prev]+hidden_units+[units_next], sampler_kind=type))
+            Sampler([Z_dim[-1]]+H_dim[-1]+[[X_dim][-1]], sampler_kind=type))
         self.layers = nn.Sequential(*self.layers)
 
     def forward(self, Z):
@@ -46,39 +45,22 @@ class VAE(nn.Module):
     def __init__(self, X_dim, H_dim, Z_dim, num_samples, encoder='Gaussian', decoder='Bernoulli', bias=None):
         super(VAE, self).__init__()
         self.num_samples = num_samples
+        # prior - p(z)
+        self.prior = torch.distributions.Normal(0, 1)
         # encoder network - q(z|x)
-        self.encoder_layers = []
-        for units_prev, hidden_units, units_next in zip([X_dim], H_dim, Z_dim):
-            self.encoder_layers.append(Sampler([units_prev]+hidden_units+[units_next],
-                    sampler_kind=encoder))
-            
-        self.encoder_layers = nn.Sequential(*self.encoder_layers)
+        self.encoder = Encoder(X_dim, H_dim, Z_dim, type=encoder)
         # decoder network - p(x|h)
-        self.decoder_layers = []
-        for units_prev, hidden_units, units_next in zip(Z_dim, H_dim, [X_dim]):
-            self.decoder_layers.append(Sampler([units_prev]+hidden_units+[units_next],
-                    sampler_kind=decoder))
-        self.decoder_layers = nn.Sequential(*self.decoder_layers)
-
+        self.decoder = Decoder(X_dim, H_dim, Z_dim, type=decoder)
         # TODO: Why I get better results if I dont use the authors initialization?
         self.apply(self.init)
         self.set_bias(bias)
         self.set_gpu_use()
-        # prior - p(z)
-        # self.prior = torch.distributions.Normal(torch.zeros(Z_dim).to(self.device), torch.ones(Z_dim).to(self.device))
-        self.prior = torch.distributions.Normal(0, 1)
 
     def encode(self, X):
-        for encoder in self.encoder_layers:
-            X = encoder(X)
-        Z = X
-        return Z
+        return self.encoder(X)
 
     def decode(self, Z):
-        for decoder in self.decoder_layers:
-            Z = decoder(Z)
-        X = Z
-        return X
+        return self.decoder(Z)
 
     def forward(self, X):
 
@@ -108,8 +90,7 @@ class VAE(nn.Module):
 
     def set_bias(self, bias):
         if bias is not None:
-            for decoder in self.decoder_layers:
-                decoder.mean_net[-1].bias = torch.nn.Parameter(torch.Tensor(bias))
+            self.decoder.layers[-1].mean_net[-1].bias = torch.nn.Parameter(torch.Tensor(bias))
 
     def set_gpu_use(self):
         self.device = torch.device(

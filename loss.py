@@ -27,9 +27,8 @@ class VAELoss(nn.Module):
 
         # elbo = log(p(x)) + log(p(x|z)) - log(q(z|x)) = prior + likelihood - posterior
         elbo = torch.sum(model.prior.log_prob(Z), dim=-1)
-        # elbo = torch.sum(-0.5*torch.log(twoPI) - torch.pow(0.5*Z, 2), dim=-1)
-        for log_q, log_p in zip(model.encoder_layers, model.decoder_layers):
-            elbo += log_p.log_prob(X) - log_q.log_prob(Z)
+        for q, p in zip(model.encoder.layers, model.decoder.layers):
+            elbo += torch.sum(p.log_prob(X), dim=-1) - torch.sum(q.log_prob(Z), dim=-1)
 
         return elbo
 
