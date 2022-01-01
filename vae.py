@@ -8,23 +8,27 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
         self.input_dim = X_dim
         self.output_dim = Z_dim
+        self.params = []
 
         self.layers = []
         for units_prev, hidden_units, units_next in zip([X_dim], H_dim, Z_dim):
             self.layers.append(Sampler([units_prev]+hidden_units+[units_next], sampler_kind=type))
         self.layers = nn.Sequential(*self.layers)
         
-    def forward(self, X):
+    def forward(self, input):
+        self.params = []
         for layer in self.layers:
-            layer(X)
-        return self.layers[0].Z
-
+            params = layer(input)
+            self.params.append(params)
+            input = params[0]
+        return self.params
 
 class Decoder(nn.Module):
     def __init__(self, X_dim, H_dim, Z_dim, type='Bernoulli'):
         super(Decoder, self).__init__()     
         self.input_dim = Z_dim
         self.output_dim = X_dim
+        self.params = []
 
         self.layers = []
         for units_prev, hidden_units, units_next in zip(Z_dim[:-1], H_dim[:-1], [X_dim][:-1]):
@@ -34,10 +38,13 @@ class Decoder(nn.Module):
             Sampler([Z_dim[-1]]+H_dim[-1]+[[X_dim][-1]], sampler_kind=type))
         self.layers = nn.Sequential(*self.layers)
 
-    def forward(self, Z):
+    def forward(self, input):
+        self.params = []
         for layer in self.layers:
-            layer(Z)
-        return self.layers[0].mean
+            params = layer(input)
+            self.params.append(params)
+            input = params[0]
+        return self.params
 
 class VAE(nn.Module):
     def __init__(self, X_dim, H_dim, Z_dim, num_samples, encoder='Gaussian', decoder='Bernoulli', bias=None):
@@ -65,18 +72,11 @@ class VAE(nn.Module):
         X = torch.repeat_interleave(X.unsqueeze(
             1), self.num_samples, dim=1).to(self.device)
 
-        Z = self.encode(X)
-        self.decode(Z)
+        q_params = self.encode(X)
+        inner_Z = q_params[-1][0]
+        p_params = self.decode(inner_Z)
 
-        return Z
-        # return {"Z": Z, 
-        #         "encoder": {
-        #             "mean": self.encoder_layers[0].mean, 
-        #             "std": self.encoder_layers[0].std
-        #         }, 
-        #         "decoder": { 
-        #             "mean":self.decoder_layers[0].mean
-        #         }}
+        return q_params, p_params
 
     def init(self, module):
         ''' All models were initialized with the heuristic of Glorot & Bengio (2010). '''

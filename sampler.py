@@ -1,10 +1,12 @@
 import torch
 from torch import nn
 
+
 class Sampler(nn.Module):
     def __init__(self, layer_sizes, sampler_kind):
         super(Sampler, self).__init__()
         self.sampler_kind = sampler_kind
+        self.params = None
 
         self.input_dim = layer_sizes[0]
         self.output_dim = layer_sizes[-1]
@@ -28,7 +30,7 @@ class Sampler(nn.Module):
                 self.base_net, nn.Linear(next_dim, self.output_dim), nn.Sigmoid())
         else:
             assert False
-        
+
         self.set_gpu_use()
 
     def log_prob(self, V):
@@ -36,7 +38,7 @@ class Sampler(nn.Module):
             pdf = torch.distributions.Normal(self.mean, self.std)
         if self.sampler_kind == 'Bernoulli':
             pdf = torch.distributions.Bernoulli(self.mean)
-            
+
         return pdf.log_prob(V)
 
     def forward(self, X):
@@ -45,14 +47,13 @@ class Sampler(nn.Module):
             logvar = self.logvar_net(X)
             self.std = torch.exp(logvar / 2)
             self.Z = self.mean + self.std * torch.randn_like(self.std)
-            return self.Z
+            self.params = (self.Z, self.mean, self.std)
         else:
             self.mean = self.mean_net(X)
-            return self.mean
+            self.params = (self.mean)
+        return self.params
 
     def set_gpu_use(self):
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")
         self.to(self.device)
-
-

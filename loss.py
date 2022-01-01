@@ -21,12 +21,14 @@ class VAELoss(nn.Module):
     def elbo(self, output, target, model):
         X = torch.repeat_interleave(target.unsqueeze(
             1), self.num_samples, dim=1).to(self.device)
-        Z = output
+        q_params, p_params = output
+        Z = [p[0] for p in q_params] # list of [(Z, mean, std) x num_stochastic_layers]
+        inner_Z = Z[-1] # deepest Z in network
 
         # elbo = log(p(x)) + log(p(x|z)) - log(q(z|x)) = prior + likelihood - posterior
-        elbo = torch.sum(model.prior.log_prob(Z), dim=-1)
-        for q, p in zip(model.encoder.layers, model.decoder.layers):
-            elbo += torch.sum(p.log_prob(X), dim=-1) - torch.sum(q.log_prob(Z), dim=-1)
+        elbo = torch.sum(model.prior.log_prob(inner_Z), dim=-1)
+        for q, p, z in zip(model.encoder.layers, model.decoder.layers, Z):
+            elbo += torch.sum(p.log_prob(X), dim=-1) - torch.sum(q.log_prob(z), dim=-1)
 
         return elbo
 
@@ -36,7 +38,6 @@ class VAELoss(nn.Module):
         elbo = torch.exp(elbo - max_elbo)
 
         # Computes Negative Log Likelihood (p(x)) through Log-Sum-Exp trick
-        # TODO: How to compute log-likelihood p(x) to compare NLL
         NLL = max_elbo + \
             torch.log((1/self.num_samples) * torch.sum(elbo, dim=-1))
         NLL = torch.mean(NLL)  # mean over batches
