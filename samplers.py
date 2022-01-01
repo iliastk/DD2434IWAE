@@ -4,11 +4,9 @@ from torch import nn
 
 
 class Sampler(nn.Module):
-    def __init__(self, layer_sizes, sampler_kind, is_encoder=True):
+    def __init__(self, layer_sizes, sampler_kind):
         super(Sampler, self).__init__()
         self.sampler_kind = sampler_kind
-        if not is_encoder:
-            layer_sizes.reverse()
 
         self.input_dim = layer_sizes[0]
         self.output_dim = layer_sizes[-1]

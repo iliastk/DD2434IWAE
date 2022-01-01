@@ -4,8 +4,43 @@ from torch import nn
 import numpy as np
 from samplers import GaussianSampler, BernoulliSampler, Sampler
 
-twoPI = torch.tensor(2*np.pi)
+class Encoder(nn.Module):
+    def __init__(self, X_dim, H_dim, Z_dim, type='Gaussian'):
+        super(Encoder, self).__init__()
+        self.input_dim = X_dim
+        self.output_dim = Z_dim
 
+        self.layers = []
+        for units_prev, hidden_units, units_next in zip([X_dim], H_dim, Z_dim):
+            self.layers.append(Sampler([units_prev]+hidden_units+[units_next], sampler_kind=type))
+        self.layers = nn.Sequential(*self.layers)
+        
+    def forward(self, X):
+        for layer in self.layers:
+            X = layer(X)
+        Z = X
+        return Z
+
+
+class Decoder(nn.Module):
+    def __init__(self, X_dim, H_dim, Z_dim, type='Bernoulli'):
+        super(Decoder, self).__init__()     
+        self.input_dim = Z_dim
+        self.output_dim = X_dim
+
+        self.layers = []
+        for units_prev, hidden_units, units_next in zip(Z_dim[:-1], H_dim[:-1], [X_dim][:-1]):
+            self.layers.append(
+                Sampler([units_prev]+hidden_units+[units_next], sampler_kind='Gaussian'))
+        self.layers.append(
+            Sampler([units_prev]+hidden_units+[units_next], sampler_kind=type))
+        self.layers = nn.Sequential(*self.layers)
+
+    def forward(self, Z):
+        for layer in self.layers:
+            Z = layer(Z)
+        X = Z
+        return X
 
 class VAE(nn.Module):
     def __init__(self, X_dim, H_dim, Z_dim, num_samples, encoder='Gaussian', decoder='Bernoulli', bias=None):
@@ -13,14 +48,16 @@ class VAE(nn.Module):
         self.num_samples = num_samples
         # encoder network - q(z|x)
         self.encoder_layers = []
-        for units_prev, units_next, hidden_units in zip([X_dim], Z_dim, H_dim):
+        for units_prev, hidden_units, units_next in zip([X_dim], H_dim, Z_dim):
             self.encoder_layers.append(Sampler([units_prev]+hidden_units+[units_next],
-                    sampler_kind=encoder, is_encoder=True))
+                    sampler_kind=encoder))
             
         self.encoder_layers = nn.Sequential(*self.encoder_layers)
         # decoder network - p(x|h)
         self.decoder_layers = []
-        self.decoder_layers.append(Sampler(X_dim, H_dim, Z_dim, sampler_kind=decoder, is_encoder=False))
+        for units_prev, hidden_units, units_next in zip(Z_dim, H_dim, [X_dim]):
+            self.decoder_layers.append(Sampler([units_prev]+hidden_units+[units_next],
+                    sampler_kind=decoder))
         self.decoder_layers = nn.Sequential(*self.decoder_layers)
 
         # TODO: Why I get better results if I dont use the authors initialization?
