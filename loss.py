@@ -12,15 +12,13 @@ class VAELoss(nn.Module):
         self.set_gpu_use()
 
     def forward(self, outputs, target, model):
-        elbo = self.elbo2(outputs, target, model)
-        # elbo = self.elbo(outputs, target)
-        loss = torch.sum(elbo, dim=-1)
-        loss = torch.mean(loss)
+        elbo = self.elbo(outputs, target, model)
+        loss = torch.mean(elbo) # avg over batches
 
         NLL = self.NLL(elbo)
         return -loss, -NLL
 
-    def elbo2(self, output, target, model):
+    def elbo(self, output, target, model):
         X = torch.repeat_interleave(target.unsqueeze(
             1), self.num_samples, dim=1).to(self.device)
         Z = output
@@ -29,32 +27,6 @@ class VAELoss(nn.Module):
         elbo = torch.sum(model.prior.log_prob(Z), dim=-1)
         for q, p in zip(model.encoder.layers, model.decoder.layers):
             elbo += torch.sum(p.log_prob(X), dim=-1) - torch.sum(q.log_prob(Z), dim=-1)
-
-        return elbo
-
-    def elbo(self, output, target):  # TODO: is this log_elbo?
-        X = torch.repeat_interleave(target.unsqueeze(
-            1), self.num_samples, dim=1).to(self.device)
-        Z = output['Z']
-        mu_z, std_z, mu_x = output['encoder']['mean'], output['encoder']['std'], output['decoder']['mean']
-
-        # likelihood: p(x|z, theta) => log(Bernoulli(mu_x))
-        logP_XgivenZ = torch.sum(
-            X * torch.log(mu_x) + (1-X) * torch.log(1 - mu_x), dim=-1)
-
-        # prior: p(z|theta) => log(N(0,1))
-        logP_Z = torch.sum(-0.5*torch.log(twoPI) - torch.pow(0.5*Z, 2), dim=-1)
-        # logP_Z = torch.sum(-0.5*torch.log(twoPI) - 0.5*torch.pow(z, 2), dim=-1) #TODO: which one is the correct formula?
-
-        # posterior: q(z|x, phi) => log(N(mu_z, std_z))
-        logQ_ZgivenX = torch.sum(-torch.log(std_z) -
-                                 0.5*torch.log(twoPI) -
-                                 0.5*torch.pow((Z - mu_z)/std_z, 2),
-                                 dim=-1)  # sum over last dimension, i.e, content (mu or std) of each batch
-
-        # TODO: this is the ELBO, right?
-        # computing log w function: log(w) = log(p(x,z)) - log(p(z|x))
-        elbo = logP_XgivenZ + logP_Z - logQ_ZgivenX
 
         return elbo
 
