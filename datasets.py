@@ -18,7 +18,6 @@ class BinarizedMNIST(torchvision.datasets.MNIST):
         img = self.data[idx]
         img = Image.fromarray(img.numpy(), mode='L')
         img = transforms.ToTensor()(img)
-        # TODO: Try torch.bernoulli()?
         img = img > 0.5
         img = img.float()
         # img = torch.bernoulli(img)

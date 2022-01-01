@@ -7,11 +7,11 @@ class Encoder(nn.Module):
     def __init__(self, X_dim, H_dim, Z_dim, type='Gaussian'):
         super(Encoder, self).__init__()
         self.input_dim = X_dim
-        self.output_dim = Z_dim
+        self.output_dim = Z_dim[-1]
         self.params = []
 
         self.layers = []
-        for units_prev, hidden_units, units_next in zip([X_dim], H_dim, Z_dim):
+        for units_prev, hidden_units, units_next in zip([X_dim]+Z_dim, H_dim, Z_dim):
             self.layers.append(Sampler([units_prev]+hidden_units+[units_next], sampler_kind=type))
         self.layers = nn.Sequential(*self.layers)
         
@@ -26,16 +26,16 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, X_dim, H_dim, Z_dim, type='Bernoulli'):
         super(Decoder, self).__init__()     
-        self.input_dim = Z_dim
+        self.input_dim = Z_dim[-1]
         self.output_dim = X_dim
         self.params = []
 
         self.layers = []
-        for units_prev, hidden_units, units_next in zip(Z_dim[:-1], H_dim[:-1], [X_dim][:-1]):
+        for units_prev, hidden_units, units_next in zip(Z_dim[::-1], H_dim[::-1][:-1], Z_dim[:-1]):
             self.layers.append(
                 Sampler([units_prev]+hidden_units+[units_next], sampler_kind='Gaussian'))
         self.layers.append(
-            Sampler([Z_dim[-1]]+H_dim[-1]+[[X_dim][-1]], sampler_kind=type))
+            Sampler([Z_dim[0]]+H_dim[0]+[X_dim], sampler_kind=type))
         self.layers = nn.Sequential(*self.layers)
 
     def forward(self, input):
@@ -56,7 +56,7 @@ class VAE(nn.Module):
         self.encoder = Encoder(X_dim, H_dim, Z_dim, type=encoder)
         # decoder network - p(x|h)
         self.decoder = Decoder(X_dim, H_dim, Z_dim, type=decoder)
-        # TODO: Why I get better results if I dont use the authors initialization?
+
         self.apply(self.init)
         self.set_bias(bias)
         self.set_gpu_use()
