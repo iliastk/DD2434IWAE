@@ -118,20 +118,21 @@ def log_results(early_stopping, test_results, train_results, curr_epoch, num_epo
 
     # Log Train Results
     train_loss, train_NLL = train_results['loss'], train_results['NLL']
-    out_result = f'Epoch[{curr_epoch+1}/{num_epochs}],  Train [loss: {train_loss.item():.3f},  NLL: {train_NLL.item():.3f}]'
+    out_result = f'Epoch[{curr_epoch+1}/{num_epochs}],  Train [loss: {train_loss.item():.3f},  NLL_k: {train_NLL.item():.3f}]'
 
     # Log Test Results
-    test_loss, test_NLL = test_results['loss'], test_results['NLL']
+    test_loss, test_NLL = test_results['loss'], test_results['NLL_k'] #, test_results['NLL_5000']
     out_result = out_result + \
-        f'\t == \t Test [loss: {test_loss.item():.3f}, NLL:{test_NLL.item():.3f}]'
+        f'\t == \t Test [loss: {test_loss.item():.3f}, NLL_k:{test_NLL.item():.3f}]'
+        # f'\t == \t Test [loss: {test_loss.item():.3f}, NLL_k:{test_NLL.item():.3f}, NLL_5000:{test_NLL_5000.item():.3f}]'
 
     print(out_result)
 
     # Log to tensorboard
     writer.add_scalar('train/loss', train_loss, epoch)
-    writer.add_scalar('train/NLL', train_NLL, epoch)
+    writer.add_scalar('train/NLL_k', train_NLL, epoch)
     writer.add_scalar('test/loss', test_loss, epoch)
-    writer.add_scalar('test/NLL', test_NLL, epoch)
+    writer.add_scalar('test/NLL_k', test_NLL, epoch)
 
     early_stopping(test_NLL, test_loss, epoch, model)
 

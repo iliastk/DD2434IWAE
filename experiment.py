@@ -1,4 +1,4 @@
-from evaluation import train_epoch, test_epoch
+from evaluation import train_epoch, test_epoch, measure_estimated_log_likelihood
 from utils import *
 from tensorboardX import SummaryWriter
 
@@ -26,6 +26,7 @@ def run_train_test(params, batch_size, data_loader, criterion, model, results_di
             optimizer, scheduler, criterion, batch_size, data_loader["train"], model)
         test_results  = test_epoch(
             data_loader["test"], criterion, batch_size, model)
+        # test_results["NLL_5000"] = measure_estimated_log_likelihood(data_loader["test"], batch_size, model, num_samples=5000)
         log_results(early_stopping, test_results, train_results, epoch, num_epochs, model, writer, epoch)
 
         if early_stopping.early_stop:

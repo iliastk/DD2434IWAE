@@ -1,4 +1,6 @@
+*experiments/__pycache__/*
 *__pycache__/*
 *data/BinarizedMNIST/*
+*data/omniglot-py/*
 .DS_Store
 *results/*

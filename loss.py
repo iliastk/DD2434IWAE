@@ -136,6 +136,6 @@ class EarlyStopping:
                 f"\t\t >>> Test NLL decreased ({self.best_NLL:.3f} --> {NLL:.3f}).  Saving model ... <<<"
             )
             # Save
-        best_model_filename = f'{self.best_model_dir}/Epoch:{epoch}-Loss:{loss:.2f}-LogPx:{NLL:.2f}.pt'
+        best_model_filename = f'{self.best_model_dir}/Epoch:{epoch}-Loss:{loss:.2f}-NLL_k:{NLL:.2f}.pt'
         torch.save(model.state_dict(), best_model_filename)
         self.best_NLL = NLL

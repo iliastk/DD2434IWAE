@@ -1,7 +1,7 @@
 import numpy as np
 
 experiment = {
-    'name': 'base-2-stochastic',
+    'name': 'vae_k_1_layers_2',
     'seed': 123,
     'data': {
         'name': 'BinarizedMNISt',
