@@ -38,12 +38,11 @@ class Decoder(nn.Module):
             Sampler([Z_dim[0]]+H_dim[0]+[X_dim], sampler_kind=type))
         self.layers = nn.Sequential(*self.layers)
 
-    def forward(self, input):
+    def forward(self, Z):
         self.params = []
-        for layer in self.layers:
-            params = layer(input)
+        for z, layer in zip(reversed(Z), self.layers):
+            params = layer(z)
             self.params.append(params)
-            input = params[0]
         return self.params
 
 class VAE(nn.Module):
@@ -73,8 +72,8 @@ class VAE(nn.Module):
             1), self.num_samples, dim=1).to(self.device)
 
         q_params = self.encode(X)
-        inner_Z = q_params[-1][0]
-        p_params = self.decode(inner_Z)
+        Z = [p[0] for p in q_params] # list of [(Z, mean, std) x num_stochastic_layers]
+        p_params = self.decode(Z)
 
         return q_params, p_params
 
@@ -96,20 +95,3 @@ class VAE(nn.Module):
         print(f'Using device [{self.device}].')
         self.to(self.device)
 
-
-def iwae_loss():
-   # normalized weights through Exp-Normalization trick
-    max_w = torch.max(log_w, dim=-1)[0].unsqueeze(1)
-    w = torch.exp(log_w - max_w)
-    # unsqueeze for broadcast
-    normalized_w = w / torch.sum(w, dim=-1).unsqueeze(1)
-    # loss signal
-    loss = torch.sum(normalized_w * log_w, dim=-1)  # sum over num_samples
-    loss = -torch.mean(loss)  # mean over batchs
-
-    # computing log likelihood through Log-Sum-Exp trick
-    # sum over num_samples
-    log_px = max_w + torch.log((1/num_samples) * torch.sum(w, dim=-1))
-    log_px = torch.mean(log_px)  # mean over batches
-
-    return mu_x, log_px, loss

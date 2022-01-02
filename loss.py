@@ -2,8 +2,6 @@ from torch import nn
 import numpy as np
 import torch
 
-twoPI = torch.tensor(2*np.pi)
-
 
 class VAELoss(nn.Module):
     def __init__(self, num_samples):
@@ -12,10 +10,12 @@ class VAELoss(nn.Module):
         self.set_gpu_use()
 
     def forward(self, outputs, target, model):
-        elbo = self.elbo(outputs, target, model)
-        loss = torch.mean(elbo) # avg over batches
+        n_elbo = self.elbo(outputs, target, model)
+        elbo = torch.mean(n_elbo, dim=-1) # avg over num_samples elbos, not weighted sum
 
-        NLL = self.NLL(elbo)
+        loss = torch.mean(elbo, dim=0) # avg over batches
+
+        NLL = self.NLL(n_elbo)
         return -loss, -NLL
 
     def elbo(self, output, target, model):
@@ -27,8 +27,8 @@ class VAELoss(nn.Module):
 
         # elbo = log(p(x)) + log(p(x|z)) - log(q(z|x)) = prior + likelihood - posterior
         elbo = torch.sum(model.prior.log_prob(inner_Z), dim=-1)
-        for q, p, z in zip(model.encoder.layers, model.decoder.layers, Z):
-            elbo += torch.sum(p.log_prob(X), dim=-1) - torch.sum(q.log_prob(z), dim=-1)
+        for q, p, in_p, in_q in zip(model.encoder.layers, reversed(model.decoder.layers), [X]+Z, Z):
+            elbo += torch.sum(p.log_prob(in_p), dim=-1) - torch.sum(q.log_prob(in_q), dim=-1)
 
         return elbo
 
@@ -48,6 +48,41 @@ class VAELoss(nn.Module):
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu")
         self.to(self.device)
+
+
+class IWAELoss(VAELoss):
+    def __init__(self, num_samples):
+        super(IWAELoss, self).__init__(num_samples)
+
+    def forward(self, outputs, target, model):
+       n_log_w = self.elbo(outputs, target, model)
+       # weighted sum:
+       max_w = torch.max(n_log_w, dim=-1)[0].unsqueeze(1)
+       w = torch.exp(n_log_w - max_w)
+       normalized_w = w / torch.sum(w, dim=-1).unsqueeze(1)
+       elbo = torch.sum(normalized_w * n_log_w, dim=-1)  # sum over num_samples 
+
+       loss = torch.mean(elbo, dim=0)  # avg over batches
+
+       NLL = self.NLL(n_log_w)
+       return -loss, -NLL
+
+def iwae_loss():
+   # normalized weights through Exp-Normalization trick
+    max_w = torch.max(log_w, dim=-1)[0].unsqueeze(1)
+    w = torch.exp(log_w - max_w)
+    # unsqueeze for broadcast
+    normalized_w = w / torch.sum(w, dim=-1).unsqueeze(1)
+    # loss signal
+    loss = torch.sum(normalized_w * log_w, dim=-1)  # sum over num_samples
+    loss = -torch.mean(loss)  # mean over batchs
+
+    # computing log likelihood through Log-Sum-Exp trick
+    # sum over num_samples
+    log_px = max_w + torch.log((1/num_samples) * torch.sum(w, dim=-1))
+    log_px = torch.mean(log_px)  # mean over batches
+
+    return mu_x, log_px, loss
 
 
 class EarlyStopping:

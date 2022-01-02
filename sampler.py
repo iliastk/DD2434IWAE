@@ -45,7 +45,9 @@ class Sampler(nn.Module):
         if self.sampler_kind == 'Gaussian':
             self.mean = self.mean_net(X)
             logvar = self.logvar_net(X)
-            self.std = torch.exp(logvar / 2)
+            # logvar = log(sigma**2) = 2*log(sigma)
+            # std = exp(logvar / 2) = exp(2*log(sigma)/2) = exp(log(sigma)) = sigma
+            self.std = torch.exp(logvar / 2) 
             self.Z = self.mean + self.std * torch.randn_like(self.std)
             self.params = (self.Z, self.mean, self.std)
         else:

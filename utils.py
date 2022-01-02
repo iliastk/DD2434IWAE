@@ -5,7 +5,7 @@ import numpy as np
 from datetime import datetime
 from pathlib import Path
 from vae import VAE
-from loss import VAELoss, EarlyStopping
+from loss import VAELoss, IWAELoss, EarlyStopping
 
 
 def gen_fake_data(params: dict):
@@ -43,13 +43,18 @@ def setup_model(params, model_bias):
     Z_dim = params['Z_dim']
     H_dim = params['H_dim']
     num_samples = params['num_samples']
-    if params['type'] == 'VAE':
-        model = VAE(X_dim, H_dim, Z_dim, num_samples,
-                    encoder=params['encoder_type'], decoder=params['decoder_type'],
-                    bias=model_bias)
-    print(model)
 
-    criterion = VAELoss(num_samples)
+    model = VAE(X_dim, H_dim, Z_dim, num_samples,
+                encoder=params['encoder_type'], decoder=params['decoder_type'],
+                bias=model_bias)
+
+    if params['type'] == 'VAE':
+        criterion = VAELoss(num_samples)
+    elif params['type'] == 'IWAE':
+        criterion = IWAELoss(num_samples)
+
+    print(f'Creating a {params["type"]} model ...')
+    print(model)
 
     return model, criterion
 
@@ -129,3 +134,16 @@ def log_results(early_stopping, test_results, train_results, curr_epoch, num_epo
     writer.add_scalar('test/NLL', test_NLL, epoch)
 
     early_stopping(test_NLL, test_loss, epoch, model)
+
+
+def get_units_variances(model, dataset):
+    # X = minibatch from 0 to 500 of training data
+    # means = list of mean of each layer of encoder/q
+    # variances = variances of means[1], means[2], ...
+    pass
+
+def chop_units(model, variances, threshold=0.01):
+    # See https://github.com/yburda/iwae/blob/master/iwae.py line 288
+    # Usage in https://github.com/yburda/iwae/blob/master/experiments.py line 76
+    # Author's measure_marginal_log_likelihood() is our test_epoch() pretty much
+    pass
