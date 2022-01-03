@@ -6,6 +6,8 @@ import random
 import numpy as np
 
 
+from experiments.two_close_clusters import experiment as two_close_clusters
+from experiments.two_close_clusters_iwae import experiment as two_close_clusters_iwae
 from experiments.vae_k_1_layers_2 import experiment as vae_k_1_layers_2
 
 from experiments.vae_k_1_layers_1 import experiment as vae_k_1_layers_1
@@ -13,11 +15,15 @@ from experiments.vae_k_50_layers_1 import experiment as vae_k_50_layers_1
 
 from experiments.iwae_k_1_layers_1 import experiment as iwae_k_1_layers_1
 from experiments.iwae_k_50_layers_1 import experiment as iwae_k_50_layers_1
+from experiments.iwae_k_50_layers_2 import experiment as iwae_k_50_layers_2
 
 from experiments.linear import experiment as linear_experiment
+from experiments.simple_2_layers import experiment as simple_2_layers
+from experiments.circle_1_layer_big import experiment as circle
+#from experiments.two_close_clusters_iwae_2_layers import experiment as two_clusters
+from experiments.two_clusters import experiment as two_clusters
 
-from experiment import launch_experiment
-
+import experiment, utils
 
 def main():
     ''' TODO:
@@ -58,16 +64,19 @@ def main():
     random.seed(123)
     np.random.seed(123)
 
-    launch_experiment(vae_k_1_layers_2)
+    experiment.launch_experiment(iwae_k_50_layers_2)
 
     # launch_experiment(iwae_k_50_layers_1)
-    # launch_experiment(vae_k_50_layers_1)
-
-    # launch_experiment(iwae_k_1_layers_1)
-    # launch_experiment(vae_k_1_layers_1)
-
-    # launch_experiment(base_2_stochastic_experiment)
-    # launch_experiment(linear_experiment)
+    #launch_experiment(vae_k_50_layers_1, 'vae_k_50_1_layers_1_chkp.pt')
+    exper = vae_k_50_layers_1
+    _, _, model_bias = utils.setup_data(exper["data"])
+    model, _ = utils.setup_model(exper["model"], model_bias)
+    experiment.load(model, 'vae_k_50_1_layers_1_chkp.pt')
+    xs = [utils.interpolate_X(model, exper, amount=10) for _ in range(10)]
+    f, a = utils.plot_images(xs)
+    import matplotlib.pyplot as plt
+    plt.show()
+    
 
 
 if __name__ == "__main__":

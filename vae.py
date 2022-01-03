@@ -66,10 +66,11 @@ class VAE(nn.Module):
     def decode(self, Z):
         return self.decoder(Z)
 
-    def forward(self, X):
-
+    def forward(self, X, num_samples=None):
+        if num_samples is None:
+            num_samples = self.num_samples
         X = torch.repeat_interleave(X.unsqueeze(
-            1), self.num_samples, dim=1).to(self.device)
+            1), num_samples, dim=1).to(self.device)
 
         q_params = self.encode(X)
         Z = [p[0] for p in q_params] # list of [(Z, mean, std) x num_stochastic_layers]
@@ -80,10 +81,17 @@ class VAE(nn.Module):
     def init(self, module):
         ''' All models were initialized with the heuristic of Glorot & Bengio (2010). '''
         if type(module) == nn.Linear:
+            # Burda does
+            # A = 1 * sqrt(6/(n_out + n_in)), weights ~ unif(-A, A)
+            # bias = 0
+
+            # We did A = 5/3 * sqrt(6/(n_out + n_in))
+            # because nn.init.calculate_gain("tanh") = 5/3
+            gain = 1.0 # nn.init.calculate_gain("tanh")
             torch.nn.init.xavier_uniform_(
-                module.weight, gain=nn.init.calculate_gain("tanh")
+                module.weight, gain=gain
             )
-            module.bias.data.fill_(0.01)
+            module.bias.data.fill_(0.001)
 
     def set_bias(self, bias):
         if bias is not None:

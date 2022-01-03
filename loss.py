@@ -59,7 +59,8 @@ class IWAELoss(VAELoss):
        # weighted sum:
        max_w = torch.max(n_log_w, dim=-1)[0].unsqueeze(1)
        w = torch.exp(n_log_w - max_w)
-       normalized_w = w / torch.sum(w, dim=-1).unsqueeze(1)
+       with torch.no_grad():
+           normalized_w = w / torch.sum(w, dim=-1).unsqueeze(1)
        elbo = torch.sum(normalized_w * n_log_w, dim=-1)  # sum over num_samples 
 
        loss = torch.mean(elbo, dim=0)  # avg over batches
@@ -67,22 +68,6 @@ class IWAELoss(VAELoss):
        NLL = self.NLL(n_log_w)
        return -loss, -NLL
 
-def iwae_loss():
-   # normalized weights through Exp-Normalization trick
-    max_w = torch.max(log_w, dim=-1)[0].unsqueeze(1)
-    w = torch.exp(log_w - max_w)
-    # unsqueeze for broadcast
-    normalized_w = w / torch.sum(w, dim=-1).unsqueeze(1)
-    # loss signal
-    loss = torch.sum(normalized_w * log_w, dim=-1)  # sum over num_samples
-    loss = -torch.mean(loss)  # mean over batchs
-
-    # computing log likelihood through Log-Sum-Exp trick
-    # sum over num_samples
-    log_px = max_w + torch.log((1/num_samples) * torch.sum(w, dim=-1))
-    log_px = torch.mean(log_px)  # mean over batches
-
-    return mu_x, log_px, loss
 
 
 class EarlyStopping:
@@ -121,6 +106,8 @@ class EarlyStopping:
         elif np.abs(NLL) < np.abs(self.best_NLL) - self.threshold:
             self.save_checkpoint(NLL, model, loss, epoch)
             self.counter = 0
+        elif epoch % 100 == 0:
+            self.save_checkpoint(NLL, model, loss, epoch)
         else:
             self.counter += 1
             self.trace_func(
@@ -133,9 +120,9 @@ class EarlyStopping:
         """Saves model when test NLL decrease."""
         if self.verbose:
             self.trace_func(
-                f"\t\t >>> Test NLL decreased ({self.best_NLL:.3f} --> {NLL:.3f}).  Saving model ... <<<"
+                f"\t\t >>> Test NLL decreased ({self.best_NLL:.3f} --> {NLL:.3f}).  Saving model ... <<<" if epoch % 100 != 0 else f"\t\t >>> epoch is {epoch}. Saving model ... <<< "
             )
             # Save
         best_model_filename = f'{self.best_model_dir}/Epoch:{epoch}-Loss:{loss:.2f}-NLL_k:{NLL:.2f}.pt'
         torch.save(model.state_dict(), best_model_filename)
-        self.best_NLL = NLL
+        self.best_NLL = min(NLL, self.best_NLL)
