@@ -58,7 +58,7 @@ def main():
     random.seed(123)
     np.random.seed(123)
 
-    launch_experiment(vae_k_1_layers_2)
+    # launch_experiment(vae_k_1_layers_2)
 
     # launch_experiment(iwae_k_50_layers_1)
     # launch_experiment(vae_k_50_layers_1)
