@@ -1,22 +1,24 @@
 import numpy as np
 
 experiment = {
-    'name': 'vae_k_50_layers_1',
+    'name': 'two_close_clusters', # the one that's supposedly bad for VAE
     'seed': 123,
     'data': {
-        'name': 'BinarizedMNISt',
+        'name': 'two_close_clusters',
         'batch_size': 20,
         'path': './data/',
-        'num_workers': 0,
+        'num_workers': 1,
+        'n_samples': 200000
     },
     'model': {
         'type': 'VAE',
-        'X_dim': 784,   # input dim
-        'Z_dim': [50],    # latent dim
-        'H_dim': [[200, 200]], # deterministic layer dim
+        'X_dim': 1,   # input dim
+        'Z_dim': [1],    # latent dim
+        # SHOULD ADD hidden dim!!!
+        'H_dim': [[5, 5]],  # deterministic layer dim (can be empty)
         'encoder_type': 'Gaussian',
-        'decoder_type': 'Bernoulli',
-        'num_samples': 50,
+        'decoder_type': 'Gaussian',
+        'num_samples': 1,
     },
     'training': {
         'scheduler': {
@@ -29,10 +31,10 @@ experiment = {
             'beta2': 0.999,
             'epsilon': 1e-4
         },
-        'early_stopping': {
-            'patience': 4001,
-            'threshold': 0.01
+        'early_stopping':{
+            'patience': 7,
+            'threshold': 0.001
         },
-        'total_epochs': 4001
+        'total_epochs': 1000
     }
 }

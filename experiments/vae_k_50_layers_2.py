@@ -1,22 +1,22 @@
 import numpy as np
 
 experiment = {
-    'name': 'iwae_k_1_layers_1',
+    'name': 'vae_k_50_layers_2',
     'seed': 123,
     'data': {
         'name': 'BinarizedMNISt',
         'batch_size': 20,
         'path': './data/',
-        'num_workers': 8,
+        'num_workers': 0,
     },
     'model': {
-        'type': 'IWAE',
+        'type': 'VAE',
         'X_dim': 784,   # input dim
-        'Z_dim': [50],    # latent dim
-        'H_dim': [[200, 200]], # deterministic layer dim
+        'Z_dim': [100, 50],    # latent dim
+        'H_dim': [[200, 200], [100, 100]],  # deterministic layer dim
         'encoder_type': 'Gaussian',
         'decoder_type': 'Bernoulli',
-        'num_samples': 1,
+        'num_samples': 50,
     },
     'training': {
         'scheduler': {
@@ -30,9 +30,9 @@ experiment = {
             'epsilon': 1e-4
         },
         'early_stopping': {
-            'patience': 7,
+            'patience': 4001,
             'threshold': 0.01
         },
-        'total_epochs': 3280
+        'total_epochs': 4001
     }
 }

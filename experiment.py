@@ -11,7 +11,7 @@ def load(model, path):
     model.load_state_dict(state_dict)
     print(f"Loaded model from path {path}")
 
-def launch_experiment(experiment, checkpoint_location = None):
+def launch_experiment(experiment, checkpoint_location = None, epoch=0):
 
     results_dir = create_results_dir(experiment["name"])
     writer = SummaryWriter(results_dir)
@@ -23,16 +23,16 @@ def launch_experiment(experiment, checkpoint_location = None):
 
 
     run_train_test(experiment["training"], batch_size,
-                   data_loader, criterion, model, results_dir, writer)
+                   data_loader, criterion, model, results_dir, writer, start_epoch=epoch)
     
 
-def run_train_test(params, batch_size, data_loader, criterion, model, results_dir, writer):
+def run_train_test(params, batch_size, data_loader, criterion, model, results_dir, writer, start_epoch):
     optimizer = setup_optimizer(params["optimizer"], model.parameters())
-    scheduler = setup_scheduler(params["scheduler"], optimizer)
+    scheduler = setup_scheduler(params["scheduler"], optimizer, start_epoch)
     early_stopping = setup_early_stopping(params['early_stopping'], results_dir)
 
     num_epochs = params['total_epochs']
-    for epoch in range(num_epochs):
+    for epoch in range(start_epoch, num_epochs):
         train_results = train_epoch(
             optimizer, scheduler, criterion, batch_size, data_loader["train"], model)
         test_results  = test_epoch(

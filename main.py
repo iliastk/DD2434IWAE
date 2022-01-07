@@ -1,4 +1,7 @@
+import sys
+import subprocess
 from datasets import BinarizedMNIST
+import datasets
 from vae import VAE
 
 import torch
@@ -6,22 +9,21 @@ import random
 import numpy as np
 
 
-from experiments.two_close_clusters import experiment as two_close_clusters
-from experiments.two_close_clusters_iwae import experiment as two_close_clusters_iwae
+
 from experiments.vae_k_1_layers_2 import experiment as vae_k_1_layers_2
+from experiments.vae_k_5_layers_2 import experiment as vae_k_5_layers_2
+from experiments.vae_k_50_layers_2 import experiment as vae_k_50_layers_2
 
 from experiments.vae_k_1_layers_1 import experiment as vae_k_1_layers_1
+from experiments.vae_k_5_layers_1 import experiment as vae_k_5_layers_1
 from experiments.vae_k_50_layers_1 import experiment as vae_k_50_layers_1
 
-from experiments.iwae_k_1_layers_1 import experiment as iwae_k_1_layers_1
-from experiments.iwae_k_50_layers_1 import experiment as iwae_k_50_layers_1
+from experiments.iwae_k_5_layers_2 import experiment as iwae_k_5_layers_2
 from experiments.iwae_k_50_layers_2 import experiment as iwae_k_50_layers_2
 
-from experiments.linear import experiment as linear_experiment
-from experiments.simple_2_layers import experiment as simple_2_layers
-from experiments.circle_1_layer_big import experiment as circle
-#from experiments.two_close_clusters_iwae_2_layers import experiment as two_clusters
-from experiments.two_clusters import experiment as two_clusters
+from experiments.iwae_k_5_layers_1 import experiment as iwae_k_5_layers_1
+from experiments.iwae_k_50_layers_1 import experiment as iwae_k_50_layers_1
+from experiments.vae_k_5_layers_1_other_seed import experiment as vae_k_5_layers_1_other_seed
 
 import experiment, utils
 
@@ -64,10 +66,6 @@ def main():
     random.seed(123)
     np.random.seed(123)
 
-    experiment.launch_experiment(iwae_k_50_layers_2)
-
-    # launch_experiment(iwae_k_50_layers_1)
-    #launch_experiment(vae_k_50_layers_1, 'vae_k_50_1_layers_1_chkp.pt')
     exper = vae_k_50_layers_1
     _, _, model_bias = utils.setup_data(exper["data"])
     model, _ = utils.setup_model(exper["model"], model_bias)

@@ -1,7 +1,7 @@
 import numpy as np
 
 experiment = {
-    'name': 'iwae_k_50_layers_2',
+    'name': 'iwae_k_5_layers_1',
     'seed': 123,
     'data': {
         'name': 'BinarizedMNISt',
@@ -12,11 +12,11 @@ experiment = {
     'model': {
         'type': 'IWAE',
         'X_dim': 784,   # input dim
-        'Z_dim': [100, 50],    # latent dim
-        'H_dim': [[200, 200], [100, 100]],  # deterministic layer dim
+        'Z_dim': [50],    # latent dim
+        'H_dim': [[200, 200]], # deterministic layer dim
         'encoder_type': 'Gaussian',
         'decoder_type': 'Bernoulli',
-        'num_samples': 50,
+        'num_samples': 5,
     },
     'training': {
         'scheduler': {

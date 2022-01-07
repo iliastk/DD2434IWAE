@@ -1,3 +1,5 @@
+import utils
+import evaluation
 import math
 from scipy.stats import norm as sci_norm
 import numpy as np
@@ -8,7 +10,7 @@ from utils import setup_model
 
 import torch
 
-from experiments.two_close_clusters_iwae_2_layers import experiment
+from experiments.two_close_clusters_iwae import experiment
 
 # entropy
 def expected_log_likelihood(xs, x_density):
@@ -44,8 +46,9 @@ def sample_x(model, n_samples):
             z1 = np.random.normal(size=1)
             z1 = [float(x) for x in z1]
             z1 = torch.tensor([z1])
-            z2, _, _ = model.decoder.layers[0](z1)
-            x, _, _ = model.decoder.layers[1](z2)
+            x, _, _ = model.decoder.layers[0](z1)
+            # For 2 stoch layers if output is gaussian:
+            #x, _, _ = model.decoder.layers[1](z2)
             #print(params)
             # x, _, _ = params
             res.append(x.numpy()[0])
@@ -56,7 +59,8 @@ def main():
     model, _ = setup_model(experiment["model"], model_bias=[1])
 
     path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                        'results/two_close_clusters_iwae/06-01-2022-01--40--44/Epoch:1-Loss:1.25-NLL_k:1.34.pt')
+                        'results/two_close_clusters/07-01-2022-00--39--44/Epoch:0-Loss:1.53-NLL_k:1.48.pt')
+    # 'results/two_close_clusters/31-12-2021-11:30:14/Epoch:52-Loss:1.53-LogPx:1.53.pt')
      #'results/two_close_clusters_iwae/04-01-2022-09:30:58/Epoch:5-Loss:0.33-NLL_k:0.33.pt')
 
     state_dict = torch.load(path)
@@ -68,6 +72,11 @@ def main():
 
 
     data, _ = gen_fake_data(experiment['data'])
+    dl_data, _, _ = utils.setup_data(experiment['data'])
+    model_log_l = evaluation.measure_estimated_log_likelihood(dl_data['test'], model,
+                                                              num_points=5000)
+    print(f"L_{5000} = {model_log_l}")
+    
     plt.figure(figsize=(9, 4))
     plt.title("True distr vs VAE distr")
 

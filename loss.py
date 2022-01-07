@@ -106,7 +106,7 @@ class EarlyStopping:
         elif np.abs(NLL) < np.abs(self.best_NLL) - self.threshold:
             self.save_checkpoint(NLL, model, loss, epoch)
             self.counter = 0
-        elif epoch % 100 == 0:
+        elif epoch % 50 == 0:
             self.save_checkpoint(NLL, model, loss, epoch)
         else:
             self.counter += 1
@@ -120,9 +120,9 @@ class EarlyStopping:
         """Saves model when test NLL decrease."""
         if self.verbose:
             self.trace_func(
-                f"\t\t >>> Test NLL decreased ({self.best_NLL:.3f} --> {NLL:.3f}).  Saving model ... <<<" if epoch % 100 != 0 else f"\t\t >>> epoch is {epoch}. Saving model ... <<< "
+               f"\t\t >>> epoch is {epoch}. Saving model ... <<< "
             )
             # Save
-        best_model_filename = f'{self.best_model_dir}/Epoch:{epoch}-Loss:{loss:.2f}-NLL_k:{NLL:.2f}.pt'
+        best_model_filename = f'{self.best_model_dir}/Epoch--{epoch}-Loss--{loss:.2f}-NLL_k--{NLL:.2f}.pt'
         torch.save(model.state_dict(), best_model_filename)
         self.best_NLL = min(NLL, self.best_NLL)

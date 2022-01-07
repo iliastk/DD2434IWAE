@@ -7,7 +7,7 @@ experiment = {
         'name': 'BinarizedMNISt',
         'batch_size': 20,
         'path': './data/',
-        'num_workers': 8,
+        'num_workers': 0,
     },
     'model': {
         'type': 'VAE',
@@ -30,9 +30,9 @@ experiment = {
             'epsilon': 1e-4
         },
         'early_stopping': {
-            'patience': 7,
+            'patience': 4001,
             'threshold': 0.01
         },
-        'total_epochs': 3280
+        'total_epochs': 4001
     }
 }

@@ -24,7 +24,6 @@ def setup_model(params, model_bias):
         criterion = IWAELoss(num_samples)
 
     print(f'Creating a {params["type"]} model ...')
-    print(model)
 
     return model, criterion
 
@@ -136,10 +135,12 @@ def setup_optimizer(params, model_parameters):
     return optimizer
 
 
-def setup_scheduler(params, optimizer):
+def setup_scheduler(params, optimizer, start_epoch):
     scheduler = torch.optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=params['milestones'], gamma=params['gamma'], verbose=True
     )
+    for _ in range(start_epoch):
+        scheduler.step()
     return scheduler
 
 
@@ -312,4 +313,5 @@ def plot_images(images: List[List[np.ndarray]]):
 
     fig.tight_layout()
     return fig, axs
+
 
